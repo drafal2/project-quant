@@ -1,17 +1,20 @@
 import calendar
 from datetime import date, timedelta
+from enum import Enum
 from typing import List, Optional
 
-from .calendars import HolidayCalendar
+from .calendars import CalendarType, HolidayCalendar
+from .conventions import BusinessDayConvention, DayCountConvention, StubType
 from .day_count import day_count_fraction
-from .enums import (
-    BusinessDayConvention,
-    CalendarType,
-    DayCountConvention,
-    Frequency,
-    StubType,
-)
 from .models import Period
+
+
+class Frequency(Enum):
+    DAILY = 0
+    MONTHLY = 1
+    QUARTERLY = 3
+    SEMI_ANNUAL = 6
+    ANNUAL = 12
 
 
 def _days_in_month(year: int, month: int) -> int:
@@ -95,10 +98,9 @@ class Schedule:
                 dates.append(d)
             dates.append(self._termination)
             if self._stub_type == StubType.LONG_BACK and len(dates) >= 3:
-                # Merge last two regular periods into one long stub
                 dates = dates[:-2] + [dates[-1]]
 
-        else:  # SHORT_FRONT or LONG_FRONT
+        else:
             dates_rev = [self._termination]
             d = self._termination
             while True:
@@ -109,7 +111,6 @@ class Schedule:
             dates_rev.append(self._effective)
             dates = list(reversed(dates_rev))
             if self._stub_type == StubType.LONG_FRONT and len(dates) >= 3:
-                # Merge first two periods into one long front stub
                 dates = [dates[0]] + dates[2:]
 
         return dates

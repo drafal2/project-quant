@@ -4,7 +4,8 @@ import pytest
 
 from schedules.calendars import HolidayCalendar
 from scripts.holiday_generators import _easter, _usd_holidays, _eur_holidays, _gbp_holidays
-from schedules.enums import BusinessDayConvention, CalendarType
+from schedules.conventions import BusinessDayConvention
+from schedules.calendars import CalendarType
 
 
 def test_easter_known_dates():

@@ -1,6 +1,14 @@
 from datetime import date, timedelta
+from enum import Enum
 
-from .enums import BusinessDayConvention, CalendarType
+from .conventions import BusinessDayConvention
+
+
+class CalendarType(Enum):
+    USD = "USD"
+    EUR = "EUR"
+    GBP = "GBP"
+    PLN = "PLN"
 
 
 class HolidayCalendar:
@@ -20,7 +28,6 @@ class HolidayCalendar:
         return d in self._holidays(d.year)
 
     def is_business_day(self, d: date) -> bool:
-        
         return d.weekday() < 5 and not self.is_holiday(d)
 
     def adjust(self, d: date, convention: BusinessDayConvention) -> date:
