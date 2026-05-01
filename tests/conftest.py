@@ -4,8 +4,8 @@ from pathlib import Path
 import pytest
 
 import irs_schedule.db as irsdb
-from database.schema import init_db
 from scripts.holiday_generators import _eur_holidays, _gbp_holidays, _pln_holidays, _usd_holidays
+from scripts.initialise import init_db
 
 _CALENDARS = [
     ("USD", _usd_holidays),

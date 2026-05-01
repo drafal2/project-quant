@@ -1,0 +1,44 @@
+import sqlite3
+
+from database.connection import get_db_path
+from database.holidays import create_holidays_table
+from scripts.holiday_generators import _eur_holidays, _gbp_holidays, _pln_holidays, _usd_holidays
+
+# Register a create_<name>_table(conn) function here for each new feature.
+_TABLE_CREATORS = [
+    create_holidays_table,
+]
+
+_HOLIDAY_CALENDARS = [
+    ("USD", _usd_holidays),
+    ("EUR", _eur_holidays),
+    ("GBP", _gbp_holidays),
+    ("PLN", _pln_holidays),
+]
+
+YEAR_FROM = 2000
+YEAR_TO = 2100
+
+
+def init_db() -> None:
+    with sqlite3.connect(get_db_path()) as conn:
+        for create in _TABLE_CREATORS:
+            create(conn)
+
+
+def _seed_holidays(conn: sqlite3.Connection) -> None:
+    conn.execute("DELETE FROM holidays")
+    for year in range(YEAR_FROM, YEAR_TO + 1):
+        for calendar, fn in _HOLIDAY_CALENDARS:
+            for d, description in fn(year).items():
+                conn.execute(
+                    "INSERT OR IGNORE INTO holidays (calendar, label, date, description) VALUES (?, ?, ?, ?)",
+                    (calendar, "BASE", d.isoformat(), description),
+                )
+
+
+if __name__ == "__main__":
+    init_db()
+    with sqlite3.connect(get_db_path()) as conn:
+        _seed_holidays(conn)
+    print(f"Initialised quant.db with data for {YEAR_FROM}–{YEAR_TO}.")
