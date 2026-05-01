@@ -23,39 +23,36 @@ python example.py
 
 ## Architecture
 
-A Python quantitative finance toolkit demonstrating quant skills across multiple financial domains. Each domain lives in its own library package; the shared SQLite database (`quant.db`) holds reference data for all domains.
+A Python quantitative finance toolkit. Each domain lives in its own library package; the shared SQLite database (`quant.db`) holds reference data for all domains. `examples/` contains Jupyter notebooks that document each package.
 
 ### Database (`database/`)
 
 Manages the connection and per-domain table definitions:
 
-- **`connection.py`** — global DB path (`quant.db`); `set_db_path()` used by tests to swap in a temp DB
-- **`holidays.py`** — `create_holidays_table(conn)` and `load_holidays()` query
+- **`connection.py`** — global DB path (`quant.db`); `set_db_path()` lets tests swap in a temp DB without touching `quant.db`
+- **`holidays.py`** — `create_holidays_table(conn)` DDL and `HolidayRepository` (add/remove/get_by_year/get_all)
 
 ### Initialisation (`scripts/initialise.py`)
 
-Single entry point for DB setup. Owns `init_db()` (calls all registered `create_<name>_table` functions) and seeds all reference data. To add a new domain table: define `create_<name>_table(conn)` in `database/<name>.py` and register it in `_TABLE_CREATORS`.
+Single entry point for DB setup. `init_db()` runs all registered `create_<name>_table` functions from `_TABLE_CREATORS`. `_seed_holidays()` populates the holidays table; it is called when run as `__main__`, and exposed for notebooks. To add a new domain table: define `create_<name>_table(conn)` in `database/<name>.py` and append it to `_TABLE_CREATORS`.
 
-### IRS Schedule Library (`irs_schedule/`)
+### Schedules Library (`schedules/`)
 
-Generates interest rate swap accrual schedules with configurable financial conventions:
+Generates accrual schedules for fixed income instruments (IRS, bonds):
 
-- **`schedule.py`** — `Schedule` class: main entry point. Generates a list of `Period` objects from effective/termination dates, frequency, day count convention, business day convention, calendar, and stub type.
-- **`models.py`** — `Period` dataclass (frozen): accrual start/end, pay date, day count fraction.
-- **`enums.py`** — `Frequency`, `DayCountConvention`, `BusinessDayConvention`, `CalendarType`, `StubType`.
-- **`calendars.py`** — `HolidayCalendar`: loads holidays from SQLite and adjusts dates per business day convention.
-- **`day_count.py`** — `day_count_fraction()`: ACT/360, ACT/365, 30/360, ACT/ACT ISDA.
-- **`db.py`** — thin wrapper re-exporting `get_db_path`, `set_db_path`, `load_holidays` from `database/`.
-
-### Scripts (`scripts/`)
-
-- **`initialise.py`** — DB setup and seeding (see above).
-- **`holiday_generators.py`** — computes holiday dates for USD, EUR, GBP, PLN calendars.
+- **`schedule.py`** — `Schedule` class (main entry point) and `Period` dataclass (frozen: accrual start/end, pay date, DCF). `Frequency` enum lives here (DAILY/MONTHLY/QUARTERLY/SEMI_ANNUAL/ANNUAL).
+- **`conventions.py`** — `DayCountConvention`, `BusinessDayConvention`, `StubType` enums.
+- **`calendars.py`** — `CalendarType` enum (USD/EUR/GBP/PLN) and `HolidayCalendar` (holiday lookup + date adjustment). Lazy-caches holidays per year via `HolidayRepository`.
+- **`day_count.py`** — `day_count_fraction()`: ACT/360, ACT/365 Fixed, 30/360 Bond Basis, ACT/ACT ISDA.
 
 ### Tests (`tests/`)
 
-- **`conftest.py`** — `seeded_test_db` fixture: spins up a temp DB, calls `init_db()`, and seeds holidays for 2020–2029. Applied to all tests automatically.
-- **`test_schedule.py`** — schedule generation (stubs, frequencies, date rolling).
-- **`test_calendars.py`** — business day adjustment logic.
-- **`test_day_count.py`** — day count convention calculations.
-- **`test_integration.py`** — end-to-end tests across conventions and calendars.
+- **`conftest.py`** — `seeded_test_db` autouse fixture: redirects the global DB to a temp file, calls `init_db()`, and seeds holidays for 2020–2029. All tests run in isolation with no access to `quant.db`.
+- Test files cover schedule generation, calendars, day count conventions, the holiday repository, and integration scenarios.
+
+### Examples (`examples/`)
+
+Jupyter notebooks that demonstrate each library package. Each notebook:
+- adds the project root to `sys.path`
+- redirects the DB to `examples/demo.db` via `set_db_path()` (never touches `quant.db`)
+- seeds `demo.db` on first run (idempotent — skips if data already present)
