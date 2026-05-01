@@ -8,11 +8,12 @@ class HolidayCalendar:
         self._type = calendar_type
         self._label = label
         self._cache: dict[int, frozenset] = {}
+        from database.holidays import HolidayRepository
+        self._repo = HolidayRepository()
 
     def _holidays(self, year: int) -> frozenset:
         if year not in self._cache:
-            from . import db
-            self._cache[year] = db.load_holidays(self._type.value, self._label, year)
+            self._cache[year] = self._repo.get_by_year(self._type.value, year, self._label)
         return self._cache[year]
 
     def is_holiday(self, d: date) -> bool:

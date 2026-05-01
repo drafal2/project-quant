@@ -13,7 +13,7 @@ venv/
 env/
 
 # Database
-holidays.db
+quant.db
 
 # Testing
 .pytest_cache/
@@ -27,3 +27,6 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude
+.claude/
