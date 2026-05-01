@@ -1,4 +1,5 @@
 import calendar
+from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import Enum
 from typing import List, Optional
@@ -6,7 +7,14 @@ from typing import List, Optional
 from .calendars import CalendarType, HolidayCalendar
 from .conventions import BusinessDayConvention, DayCountConvention, StubType
 from .day_count import day_count_fraction
-from .models import Period
+
+
+@dataclass(frozen=True)
+class Period:
+    accrual_start: date
+    accrual_end: date
+    pay_date: date
+    dcf: float
 
 
 class Frequency(Enum):
