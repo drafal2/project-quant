@@ -1,6 +1,6 @@
 from datetime import date
 
-from .enums import DayCountConvention
+from .conventions import DayCountConvention
 
 
 def _is_leap(year: int) -> bool:
