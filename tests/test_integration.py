@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from irs_schedule import (
+from schedules import (
     BusinessDayConvention,
     CalendarType,
     DayCountConvention,
@@ -41,16 +41,16 @@ class TestGBPCalendarIntegration:
             calendar=CalendarType.GBP,
         )
         # The accrual end is Sep 1, not Aug 26 — so test directly via calendar
-        from irs_schedule.calendars import HolidayCalendar
-        from irs_schedule.enums import CalendarType as CT, BusinessDayConvention as BDC
+        from schedules.calendars import HolidayCalendar
+        from schedules.enums import CalendarType as CT, BusinessDayConvention as BDC
         cal = HolidayCalendar(CT.GBP)
         assert cal.adjust(date(2024, 8, 26), BDC.FOLLOWING) == date(2024, 8, 27)
 
 
 class TestEURTargetIntegration:
     def test_christmas_and_boxing_day(self):
-        from irs_schedule.calendars import HolidayCalendar
-        from irs_schedule.enums import CalendarType as CT, BusinessDayConvention as BDC
+        from schedules.calendars import HolidayCalendar
+        from schedules.enums import CalendarType as CT, BusinessDayConvention as BDC
         cal = HolidayCalendar(CT.EUR)
         # Dec 25 and Dec 26 both holidays; FOLLOWING lands on Dec 27
         assert cal.adjust(date(2024, 12, 25), BDC.FOLLOWING) == date(2024, 12, 27)
@@ -116,8 +116,8 @@ class TestModifiedFollowingMonthBoundary:
     def test_dec31_rolls_back_usd(self):
         # Dec 31 2022 = Saturday; Jan 1 2023 = Sunday → observed Jan 2 Monday
         # FOLLOWING lands Jan 3 (first USD business day) → crosses month → PRECEDING = Dec 30
-        from irs_schedule.calendars import HolidayCalendar
-        from irs_schedule.enums import CalendarType as CT, BusinessDayConvention as BDC
+        from schedules.calendars import HolidayCalendar
+        from schedules.enums import CalendarType as CT, BusinessDayConvention as BDC
         cal = HolidayCalendar(CT.USD)
         result = cal.adjust(date(2022, 12, 31), BDC.MODIFIED_FOLLOWING)
         assert result == date(2022, 12, 30)

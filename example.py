@@ -1,6 +1,6 @@
 import calendar
 from datetime import date
-from irs_schedule import Schedule, Frequency, DayCountConvention, BusinessDayConvention, CalendarType
+from schedules import Schedule, Frequency, DayCountConvention, BusinessDayConvention, CalendarType
 
 effective = date(2024, 3, 20)
 

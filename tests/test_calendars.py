@@ -2,9 +2,9 @@ from datetime import date
 
 import pytest
 
-from irs_schedule.calendars import HolidayCalendar
+from schedules.calendars import HolidayCalendar
 from scripts.holiday_generators import _easter, _usd_holidays, _eur_holidays, _gbp_holidays
-from irs_schedule.enums import BusinessDayConvention, CalendarType
+from schedules.enums import BusinessDayConvention, CalendarType
 
 
 def test_easter_known_dates():

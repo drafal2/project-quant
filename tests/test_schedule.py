@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from irs_schedule import (
+from schedules import (
     BusinessDayConvention,
     CalendarType,
     DayCountConvention,
