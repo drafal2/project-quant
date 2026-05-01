@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-import irs_schedule.db as irsdb
+from database import set_db_path
 from scripts.holiday_generators import _eur_holidays, _gbp_holidays, _pln_holidays, _usd_holidays
 from scripts.initialise import init_db
 
@@ -20,7 +20,7 @@ _DEFAULT_DB = str(Path(__file__).parent.parent / "quant.db")
 @pytest.fixture(autouse=True)
 def seeded_test_db(tmp_path):
     db_file = str(tmp_path / "test.db")
-    irsdb.set_db_path(db_file)
+    set_db_path(db_file)
     init_db()
 
     with sqlite3.connect(db_file) as conn:
@@ -34,4 +34,4 @@ def seeded_test_db(tmp_path):
 
     yield
 
-    irsdb.set_db_path(_DEFAULT_DB)
+    set_db_path(_DEFAULT_DB)
