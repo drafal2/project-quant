@@ -1,3 +1,5 @@
+"""Market structure objects: curves and interpolators."""
+
 from .rates import ZeroCurve
 from .interpolation import LinearInterpolator, LogLinearInterpolator, V2TInterpolator
 

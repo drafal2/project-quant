@@ -1,3 +1,5 @@
+"""Schedule class and Period dataclass for generating fixed income accrual schedules."""
+
 import calendar
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -11,6 +13,8 @@ from .day_count import day_count_fraction
 
 @dataclass(frozen=True)
 class Period:
+    """Immutable record of a single accrual period."""
+
     accrual_start: date
     accrual_end: date
     pay_date: date
@@ -18,6 +22,8 @@ class Period:
 
 
 class Frequency(Enum):
+    """Payment frequency expressed as months per period (0 = daily)."""
+
     DAILY = 0
     MONTHLY = 1
     QUARTERLY = 3
@@ -26,14 +32,18 @@ class Frequency(Enum):
 
 
 def _days_in_month(year: int, month: int) -> int:
+    """Return the number of days in the given month."""
     return calendar.monthrange(year, month)[1]
 
 
 def _is_last_day_of_month(d: date) -> bool:
+    """Return True if the date falls on the last calendar day of its month."""
     return d.day == _days_in_month(d.year, d.month)
 
 
 class Schedule:
+    """Generates accrual schedules for fixed income instruments."""
+
     def __init__(
         self,
         effective_date: date,
@@ -45,6 +55,7 @@ class Schedule:
         end_of_month: bool = False,
         stub_type: StubType = StubType.SHORT_BACK,
     ) -> None:
+        """Initialise a schedule with effective/termination dates, frequency, and adjustment rules."""
         if effective_date >= termination_date:
             raise ValueError("effective_date must be before termination_date")
         self._effective = effective_date
@@ -58,18 +69,22 @@ class Schedule:
         self._periods: Optional[List[Period]] = None
 
     def generate(self) -> List[Period]:
+        """Build and return the list of accrual periods, computing on first call."""
         if self._periods is None:
             unadj = self._generate_unadjusted_dates()
             self._periods = self._build_periods(unadj)
         return self._periods
 
     def __iter__(self):
+        """Iterate over the generated periods."""
         return iter(self.generate())
 
     def __len__(self):
+        """Return the number of periods in the schedule."""
         return len(self.generate())
 
     def _add_months(self, d: date, n: int) -> date:
+        """Add n months to a date, respecting the end-of-month convention."""
         total_months = d.year * 12 + (d.month - 1) + n
         year = total_months // 12
         month = total_months % 12 + 1
@@ -80,6 +95,7 @@ class Schedule:
         return date(year, month, day)
 
     def _generate_unadjusted_dates(self) -> List[date]:
+        """Generate raw schedule dates based on frequency and stub type, before business day adjustment."""
         if self._frequency == Frequency.DAILY:
             dates = [self._effective]
             d = self._effective
@@ -124,6 +140,7 @@ class Schedule:
         return dates
 
     def _build_periods(self, dates: List[date]) -> List[Period]:
+        """Convert a list of dates into Period objects with adjusted pay dates and DCFs."""
         periods = []
         for i in range(len(dates) - 1):
             start = dates[i]

@@ -1,7 +1,11 @@
+"""Day count convention enum."""
+
 from enum import Enum
 
 
 class DayCountConvention(Enum):
+    """Convention for computing the day count fraction between two dates."""
+
     ACT_360 = "ACT/360"
     ACT_365_FIXED = "ACT/365 Fixed"
     THIRTY_360_BOND = "30/360 Bond Basis"

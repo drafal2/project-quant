@@ -1,3 +1,5 @@
+"""Database initialisation and holiday seeding entry point."""
+
 import sqlite3
 
 from database.connection import get_db_path
@@ -21,12 +23,14 @@ YEAR_TO = 2100
 
 
 def init_db() -> None:
+    """Create all registered domain tables in the database."""
     with sqlite3.connect(get_db_path()) as conn:
         for create in _TABLE_CREATORS:
             create(conn)
 
 
 def _seed_holidays(conn: sqlite3.Connection) -> None:
+    """Populate the holidays table for all calendars from YEAR_FROM to YEAR_TO."""
     conn.execute("DELETE FROM holidays")
     for year in range(YEAR_FROM, YEAR_TO + 1):
         for calendar, fn in _HOLIDAY_CALENDARS:

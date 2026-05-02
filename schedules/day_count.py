@@ -1,9 +1,12 @@
+"""Day count fraction calculations for ACT/360, ACT/365, 30/360, and ACT/ACT ISDA."""
+
 from datetime import date
 
 from market_conventions import DayCountConvention
 
 
 def _is_leap(year: int) -> bool:
+    """Return True if the year is a leap year."""
     return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
 
 
@@ -12,6 +15,7 @@ def day_count_fraction(
     end: date,
     convention: DayCountConvention,
 ) -> float:
+    """Compute the day count fraction between two dates under the given convention."""
     if convention == DayCountConvention.ACT_360:
         return (end - start).days / 360
 

@@ -1,3 +1,5 @@
+"""Accrual schedule generation for fixed income instruments."""
+
 from .calendars import CalendarType, HolidayCalendar
 from market_conventions import BusinessDayConvention, DayCountConvention, StubType
 from .schedule import Frequency, Period, Schedule
