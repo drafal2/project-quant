@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "project-quant"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=3.0.2",
+    "numpy>=2.4.4",
+    "matplotlib>=3.10.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.0.3"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["database*", "market_conventions*", "market_data*", "schedules*", "scripts*"]
