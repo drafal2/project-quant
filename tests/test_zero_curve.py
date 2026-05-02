@@ -3,8 +3,8 @@ import pytest
 from datetime import date
 
 from market_conventions import CompoundingFrequency, CompoundingType, DayCountConvention
-from market_data import ZeroCurve
-from market_data.interpolation import LinearInterpolator
+from market_structures import ZeroCurve
+from market_structures.interpolation import LinearInterpolator
 
 REF = date(2024, 1, 1)
 PILLARS = [date(2024, 7, 1), date(2025, 1, 1), date(2026, 1, 1)]
