@@ -25,6 +25,16 @@ pip install -e ".[dev]"
 .venv\Scripts\python -m scripts.initialise
 ```
 
+## Contributing
+
+If you plan to commit changes to notebooks, install the `nbstripout` git hook to automatically strip cell outputs before each commit:
+
+```bash
+.venv\Scripts\nbstripout --install --attributes .gitattributes
+```
+
+This is optional but recommended — notebooks committed with outputs produce noisy diffs and bloat the repository.
+
 ## Running tests
 
 ```bash
