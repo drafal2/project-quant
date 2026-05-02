@@ -17,4 +17,4 @@ dev = ["pytest==9.0.3"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["database*", "market_conventions*", "market_data*", "schedules*", "scripts*"]
+include = ["database*", "market_conventions*", "market_structures*", "schedules*", "scripts*"]
