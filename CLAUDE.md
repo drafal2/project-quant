@@ -2,22 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Setup
-
-```bash
-# Create and activate a virtual environment
-python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # Mac/Linux
-
-# Install the project and dev dependencies
-pip install -e ".[dev]"
-
-# Register the venv as a Jupyter kernel (required to run notebooks)
-.venv\Scripts\python -m pip install ipykernel
-.venv\Scripts\python -m ipykernel install --user --name project-quant --display-name "project-quant"
-```
-
 ## Commands
 
 Always use `.venv\Scripts\python` instead of `python` to ensure the venv interpreter is used.
