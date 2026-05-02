@@ -1,7 +1,10 @@
+"""Holiday date generators for USD, EUR, GBP, and PLN calendars."""
+
 from datetime import date, timedelta
 
 
 def _easter(year: int) -> date:
+    """Compute Easter Sunday for a given year using the Anonymous Gregorian algorithm."""
     a = year % 19
     b = year // 100
     c = year % 100
@@ -20,12 +23,14 @@ def _easter(year: int) -> date:
 
 
 def _nth_weekday(year: int, month: int, weekday: int, n: int) -> date:
+    """Return the nth occurrence of a weekday (0=Mon) in the given month and year."""
     first = date(year, month, 1)
     offset = (weekday - first.weekday()) % 7
     return first + timedelta(days=offset + (n - 1) * 7)
 
 
 def _last_weekday(year: int, month: int, weekday: int) -> date:
+    """Return the last occurrence of a weekday (0=Mon) in the given month and year."""
     import calendar
     last_day = calendar.monthrange(year, month)[1]
     last = date(year, month, last_day)
@@ -34,6 +39,7 @@ def _last_weekday(year: int, month: int, weekday: int) -> date:
 
 
 def _observed(d: date) -> date:
+    """Return the observed date when a holiday falls on a weekend (Fri if Sat, Mon if Sun)."""
     if d.weekday() == 5:
         return d - timedelta(days=1)
     if d.weekday() == 6:
@@ -42,6 +48,7 @@ def _observed(d: date) -> date:
 
 
 def _usd_holidays(year: int) -> dict:
+    """Return US public holiday dates and names for the given year."""
     h = {}
     h[_observed(date(year, 1, 1))]          = "New Year's Day"
     h[_nth_weekday(year, 1, 0, 3)]          = "MLK Day"
@@ -59,6 +66,7 @@ def _usd_holidays(year: int) -> dict:
 
 
 def _eur_holidays(year: int) -> dict:
+    """Return ECB TARGET holiday dates and names for the given year."""
     easter = _easter(year)
     return {
         date(year, 1, 1):               "New Year's Day",
@@ -71,6 +79,7 @@ def _eur_holidays(year: int) -> dict:
 
 
 def _pln_holidays(year: int) -> dict:
+    """Return Polish public holiday dates and names for the given year."""
     easter = _easter(year)
     h = {
         date(year, 1, 1):               "New Year's Day",
@@ -94,6 +103,7 @@ def _pln_holidays(year: int) -> dict:
 
 
 def _gbp_holidays(year: int) -> dict:
+    """Return UK public holiday dates and names for the given year."""
     easter = _easter(year)
     h = {}
 

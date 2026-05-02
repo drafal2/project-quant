@@ -1,9 +1,14 @@
+"""1-D interpolators for market curves: linear, log-linear, and variance-to-time."""
+
 import math
 from abc import ABC, abstractmethod
 
 
 class Interpolator(ABC):
+    """Abstract base class for 1-D interpolators operating on sorted pillar points."""
+
     def __init__(self, extrapolate: bool = True) -> None:
+        """Initialise the interpolator with optional flat extrapolation beyond pillars."""
         self._extrapolate = extrapolate
 
     def interpolate(self, x: float, xs: list[float], ys: list[float]) -> float:
@@ -49,9 +54,11 @@ class LinearInterpolator(Interpolator):
     """
 
     def __init__(self, extrapolate: bool = True) -> None:
+        """Initialise the linear interpolator."""
         super().__init__(extrapolate)
 
     def _interpolate(self, x: float, xs: list[float], ys: list[float]) -> float:
+        """Interpolate linearly between the two adjacent pillars that bracket x."""
         for i in range(len(xs) - 1):
             if xs[i] <= x <= xs[i + 1]:
                 t = (x - xs[i]) / (xs[i + 1] - xs[i])
@@ -67,9 +74,11 @@ class LogLinearInterpolator(Interpolator):
     """
 
     def __init__(self, extrapolate: bool = True) -> None:
+        """Initialise the log-linear interpolator."""
         super().__init__(extrapolate)
 
     def _interpolate(self, x: float, xs: list[float], ys: list[float]) -> float:
+        """Interpolate linearly on log(y) between the two adjacent pillars that bracket x."""
         for i in range(len(xs) - 1):
             if xs[i] <= x <= xs[i + 1]:
                 t = (x - xs[i]) / (xs[i + 1] - xs[i])
@@ -90,9 +99,11 @@ class V2TInterpolator(Interpolator):
     """
 
     def __init__(self, extrapolate: bool = True) -> None:
+        """Initialise the variance-to-time interpolator."""
         super().__init__(extrapolate)
 
     def _interpolate(self, x: float, xs: list[float], ys: list[float]) -> float:
+        """Interpolate by linearly blending total variance (σ²·T) then converting back to volatility."""
         for i in range(len(xs) - 1):
             if xs[i] <= x <= xs[i + 1]:
                 w_left = ys[i] ** 2 * xs[i]
