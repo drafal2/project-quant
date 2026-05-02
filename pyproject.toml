@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.0.3"]
+dev = ["pytest==9.0.3", "nbstripout>=0.9.1"]
 
 [tool.setuptools.packages.find]
 where = ["."]
