@@ -7,9 +7,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Always use `.venv\Scripts\python` instead of `python` to ensure the venv interpreter is used.
 
 ```bash
-# First-time setup: create and seed the database
-.venv\Scripts\python -m scripts.initialise
-
 # Run all tests
 .venv\Scripts\python -m pytest tests/ -q
 
@@ -45,19 +42,34 @@ Manages the connection and per-domain table definitions:
 
 Single entry point for DB setup. `init_db()` runs all registered `create_<name>_table` functions from `_TABLE_CREATORS`. `_seed_holidays()` populates the holidays table; it is called when run as `__main__`, and exposed for notebooks. To add a new domain table: define `create_<name>_table(conn)` in `database/<name>.py` and append it to `_TABLE_CREATORS`.
 
+### Market Conventions (`market_conventions/`)
+
+Shared enums used across all packages:
+
+- **`business_day.py`** — `BusinessDayConvention` (UNADJUSTED/FOLLOWING/PRECEDING/MODIFIED_FOLLOWING)
+- **`compounding.py`** — `CompoundingType` (CONTINUOUS/SIMPLE/COMPOUNDED) and `CompoundingFrequency` (ANNUAL/SEMI_ANNUAL/QUARTERLY/MONTHLY)
+- **`day_count.py`** — `DayCountConvention` (ACT_360/ACT_365_FIXED/THIRTY_360_BOND/ACT_ACT_ISDA)
+- **`stub.py`** — `StubType` (SHORT_FRONT/LONG_FRONT/SHORT_BACK/LONG_BACK)
+
+### Market Structures (`market_structures/`)
+
+Objects for representing market data:
+
+- **`rates/curve.py`** — `ZeroCurve`: interpolated zero-rate curve with discount factor, zero rate, and forward rate queries. Supports pluggable interpolators and compounding conventions.
+- **`interpolation/interpolators.py`** — `LinearInterpolator`, `LogLinearInterpolator` (market standard for discount factors), `V2TInterpolator` (variance-to-time, for implied vol).
+
 ### Schedules Library (`schedules/`)
 
 Generates accrual schedules for fixed income instruments (IRS, bonds):
 
 - **`schedule.py`** — `Schedule` class (main entry point) and `Period` dataclass (frozen: accrual start/end, pay date, DCF). `Frequency` enum lives here (DAILY/MONTHLY/QUARTERLY/SEMI_ANNUAL/ANNUAL).
-- **`conventions.py`** — `DayCountConvention`, `BusinessDayConvention`, `StubType` enums.
 - **`calendars.py`** — `CalendarType` enum (USD/EUR/GBP/PLN) and `HolidayCalendar` (holiday lookup + date adjustment). Lazy-caches holidays per year via `HolidayRepository`.
 - **`day_count.py`** — `day_count_fraction()`: ACT/360, ACT/365 Fixed, 30/360 Bond Basis, ACT/ACT ISDA.
 
 ### Tests (`tests/`)
 
 - **`conftest.py`** — `seeded_test_db` autouse fixture: redirects the global DB to a temp file, calls `init_db()`, and seeds holidays for 2020–2029. All tests run in isolation with no access to `quant.db`.
-- Test files cover schedule generation, calendars, day count conventions, the holiday repository, and integration scenarios.
+- Test files cover schedule generation, calendars, day count conventions, holiday repository, zero curve, and interpolators.
 
 ### Examples (`examples/`)
 
