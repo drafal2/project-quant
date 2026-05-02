@@ -2,23 +2,38 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Setup
+
+```bash
+# Create and activate a virtual environment
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate   # Mac/Linux
+
+# Install the project and dev dependencies
+pip install -e ".[dev]"
+
+# Register the venv as a Jupyter kernel (required to run notebooks)
+.venv\Scripts\python -m pip install ipykernel
+.venv\Scripts\python -m ipykernel install --user --name project-quant --display-name "project-quant"
+```
+
 ## Commands
+
+Always use `.venv\Scripts\python` instead of `python` to ensure the venv interpreter is used.
 
 ```bash
 # First-time setup: create and seed the database
-python -m scripts.initialise
+.venv\Scripts\python -m scripts.initialise
 
 # Run all tests
-python -m pytest tests/ -q
+.venv\Scripts\python -m pytest tests/ -q
 
 # Run a single test file
-python -m pytest tests/test_schedule.py -q
+.venv\Scripts\python -m pytest tests/test_schedule.py -q
 
 # Run a single test by name
-python -m pytest tests/test_schedule.py::test_function_name -q
-
-# Run a usage example
-python example.py
+.venv\Scripts\python -m pytest tests/test_schedule.py::test_function_name -q
 ```
 
 ## Architecture
