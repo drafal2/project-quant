@@ -36,6 +36,16 @@ Always use `.venv\Scripts\python` instead of `python` to ensure the venv interpr
 .venv\Scripts\python -m pytest tests/test_schedule.py::test_function_name -q
 ```
 
+## Git
+
+GitHub is configured to auto-delete remote branches after a PR is merged. Local branches must be cleaned up manually:
+
+```powershell
+# Delete local branches whose remote has been deleted
+git fetch --prune
+git branch -vv | grep "gone" | ForEach-Object { ($_ -split '\s+')[1] } | ForEach-Object { git branch -d $_ }
+```
+
 ## Architecture
 
 A Python quantitative finance toolkit. Each domain lives in its own library package; the shared SQLite database (`quant.db`) holds reference data for all domains. `examples/` contains Jupyter notebooks that document each package.
