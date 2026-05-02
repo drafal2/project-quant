@@ -16,6 +16,9 @@ env/
 quant.db
 examples/*.db
 
+# Jupyter
+.ipynb_checkpoints/
+
 # Testing
 .pytest_cache/
 .coverage

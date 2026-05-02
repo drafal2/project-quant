@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from schedules.day_count import day_count_fraction
-from schedules.conventions import DayCountConvention
+from market_conventions import DayCountConvention
 
 
 class TestACT360:

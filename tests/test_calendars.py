@@ -4,7 +4,7 @@ import pytest
 
 from schedules.calendars import HolidayCalendar
 from scripts.holiday_generators import _easter, _usd_holidays, _eur_holidays, _gbp_holidays
-from schedules.conventions import BusinessDayConvention
+from market_conventions import BusinessDayConvention
 from schedules.calendars import CalendarType
 
 
