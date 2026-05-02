@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from enum import Enum
 
-from .conventions import BusinessDayConvention
+from market_conventions import BusinessDayConvention
 
 
 class CalendarType(Enum):
