@@ -1,7 +1,7 @@
 import math
 import pytest
 
-from market_data.interpolation import LinearInterpolator, LogLinearInterpolator, V2TInterpolator
+from market_structures.interpolation import LinearInterpolator, LogLinearInterpolator, V2TInterpolator
 
 XS = [1.0, 2.0, 4.0]
 YS = [0.1, 0.3, 0.5]
