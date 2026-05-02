@@ -5,7 +5,7 @@ from enum import Enum
 from typing import List, Optional
 
 from .calendars import CalendarType, HolidayCalendar
-from .conventions import BusinessDayConvention, DayCountConvention, StubType
+from market_conventions import BusinessDayConvention, DayCountConvention, StubType
 from .day_count import day_count_fraction
 
 
