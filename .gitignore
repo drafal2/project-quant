@@ -34,9 +34,13 @@ Thumbs.db
 
 # Claude
 .claude/
+.claudeignore
+
+# Stored Claude plans
+plans/
 
 # Personal notes
 notes.txt
+commands.ipynb
 
-# Claude
-.claudeignore
+
