@@ -19,6 +19,26 @@ Always use `.venv\Scripts\python` instead of `python` to ensure the venv interpr
 
 ## Git
 
+All new features and bug fixes must be developed on a dedicated branch, never directly on `master`. Always start from an up-to-date master:
+
+```powershell
+git checkout master
+git pull
+git checkout -b <type>/<description>
+```
+
+Commit and push regularly after completing meaningful work to preserve progress and maintain a clear history. Open a PR when the feature or fix is complete.
+
+Commit messages must use the format `<type>: <description>`:
+
+| Type | Use for |
+|---|---|
+| `feature` | New feature |
+| `fix` | Bug fix |
+| `refactor` | Code reorganisation without behaviour change |
+| `docs` | Documentation only |
+| `config` | Repo configuration |
+
 GitHub is configured to auto-delete remote branches after a PR is merged. Local branches must be cleaned up manually:
 
 ```powershell
