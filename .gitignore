@@ -35,6 +35,7 @@ Thumbs.db
 # Claude
 .claude/
 .claudeignore
+claude_practices/
 
 # Stored Claude plans
 plans/
