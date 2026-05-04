@@ -54,10 +54,13 @@ class Schedule:
         calendar: CalendarType,
         end_of_month: bool = False,
         stub_type: StubType = StubType.SHORT_BACK,
+        payment_lag: int = 0,
     ) -> None:
         """Initialise a schedule with effective/termination dates, frequency, and adjustment rules."""
         if effective_date >= termination_date:
             raise ValueError("effective_date must be before termination_date")
+        if payment_lag < 0:
+            raise ValueError(f"payment_lag must be non-negative, got {payment_lag}.")
         self._effective = effective_date
         self._termination = termination_date
         self._frequency = frequency
@@ -66,6 +69,7 @@ class Schedule:
         self._calendar = HolidayCalendar(calendar)
         self._eom = end_of_month
         self._stub_type = stub_type
+        self._payment_lag = payment_lag
         self._periods: Optional[List[Period]] = None
 
     def generate(self) -> List[Period]:
@@ -146,6 +150,8 @@ class Schedule:
             start = dates[i]
             end = dates[i + 1]
             pay = self._calendar.adjust(end, self._bdc)
+            if self._payment_lag:
+                pay = self._calendar.add_business_days(pay, self._payment_lag)
             dcf = day_count_fraction(start, end, self._dcc)
             periods.append(Period(
                 accrual_start=start,

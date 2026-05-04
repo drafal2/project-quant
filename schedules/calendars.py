@@ -46,6 +46,15 @@ class HolidayCalendar:
         if persist:
             self._repo.add(self._type.value, d, description, self._label)
 
+    def add_business_days(self, d: date, n: int) -> date:
+        """Return the date that is n business days after d."""
+        remaining = n
+        while remaining > 0:
+            d += timedelta(days=1)
+            if self.is_business_day(d):
+                remaining -= 1
+        return d
+
     def adjust(self, d: date, convention: BusinessDayConvention) -> date:
         """Adjust a date to a business day using the given convention."""
         if convention == BusinessDayConvention.UNADJUSTED:

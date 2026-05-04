@@ -45,9 +45,10 @@ class TestConstruction:
         with pytest.raises(ValueError, match="after reference_date"):
             ZeroCurve(REF, [date(2023, 1, 1)], [0.04], DCC)
 
-    def test_raises_when_pillar_equals_reference_date(self):
-        with pytest.raises(ValueError, match="after reference_date"):
-            ZeroCurve(REF, [REF], [0.04], DCC)
+    def test_accepts_pillar_at_reference_date(self):
+        # Pillar exactly at reference_date is valid; DF=1.0 at t=0 for any rate
+        curve = ZeroCurve(REF, [REF, PILLARS[0]], [0.04, 0.04], DCC)
+        assert curve.discount_factor(REF) == pytest.approx(1.0)
 
     def test_raises_compounded_without_frequency(self):
         with pytest.raises(ValueError, match="compounding_frequency required"):
@@ -88,6 +89,17 @@ class TestDiscountFactor:
         dfs = [curve.discount_factor(d) for d in PILLARS]
         for i in range(len(dfs) - 1):
             assert dfs[i] > dfs[i + 1]
+
+    def test_before_first_pillar_log_linear_from_origin(self):
+        # For a date before the first pillar, DF is log-linearly interpolated between
+        # the implicit (t=0, DF=1) anchor at reference_date and the first pillar.
+        curve = make_curve()
+        t_first = (PILLARS[0] - REF).days / 365.0
+        df_first = curve.discount_factor(PILLARS[0])
+        mid = date(2024, 4, 1)  # between REF and PILLARS[0]
+        t_mid = (mid - REF).days / 365.0
+        expected = df_first ** (t_mid / t_first)
+        assert curve.discount_factor(mid) == pytest.approx(expected)
 
 
 class TestZeroRate:
