@@ -1,12 +1,18 @@
 """Zero-rate curve implementation with pluggable interpolation."""
 
+from __future__ import annotations
+
 import math
 from bisect import bisect_left
 from datetime import date
+from typing import TYPE_CHECKING
 
 from market_conventions import CompoundingFrequency, CompoundingType, DayCountConvention
 from schedules.day_count import day_count_fraction
 from ..interpolation.interpolators import Interpolator, LogLinearInterpolator
+
+if TYPE_CHECKING:
+    from .quotes import MarketQuote
 
 
 class ZeroCurve:
@@ -21,6 +27,7 @@ class ZeroCurve:
         compounding_type: CompoundingType = CompoundingType.CONTINUOUS,
         compounding_frequency: CompoundingFrequency | None = None,
         interpolator: Interpolator | None = None,
+        quotes: list[MarketQuote] | None = None,
     ) -> None:
         """Construct a zero curve from pillar dates, rates, and compounding/interpolation settings."""
         if len(pillar_dates) != len(rates):
@@ -37,6 +44,7 @@ class ZeroCurve:
         self._compounding_type = compounding_type
         self._compounding_frequency = compounding_frequency
         self._interpolator = interpolator or LogLinearInterpolator()
+        self._quotes: list[MarketQuote] = list(quotes) if quotes is not None else []
 
         sorted_pairs = sorted(zip(pillar_dates, rates), key=lambda x: x[0])
         self._pillar_dates, self._rates = [list(x) for x in zip(*sorted_pairs)]
@@ -95,6 +103,33 @@ class ZeroCurve:
         df_end = self.discount_factor(end)
         t = self._t(end) - self._t(start)
         return self._df_to_rate(df_end / df_start, t)
+
+    def summary(self) -> str:
+        """Return a formatted table of bootstrapping quotes with curve outputs per pillar.
+
+        Columns: instrument type, start date, maturity date, tenor, market quote,
+        discount factor, and zero rate. Returns an empty string when no quotes are stored.
+        """
+        if not self._quotes:
+            return ""
+        header = (
+            f"{'Type':<16} {'Start':>10} {'Maturity':>10} {'Tenor':>6} "
+            f"{'Quote':>10} {'DF':>10} {'ZeroRate':>10}"
+        )
+        sep = "-" * len(header)
+        rows = [header, sep]
+        for q in sorted(self._quotes, key=lambda x: x.maturity_date(self._reference_date)):
+            mat = q.maturity_date(self._reference_date)
+            start = q.start_date(self._reference_date)
+            tenor = getattr(q, 'tenor', 'N/A')
+            quote_val = q.quote_value()
+            df = self.discount_factor(mat)
+            zr = self.zero_rate(mat)
+            rows.append(
+                f"{type(q).__name__:<16} {str(start):>10} {str(mat):>10} {tenor:>6} "
+                f"{quote_val:>10.4f} {df:>10.6f} {zr:>10.4%}"
+            )
+        return "\n".join(rows)
 
     def add_pillar(self, d: date, rate: float) -> None:
         """Add a new pillar date and rate, inserting in sorted order."""

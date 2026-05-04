@@ -96,6 +96,14 @@ class MarketQuote(ABC):
         """Return the instrument's maturity date; used to sort and place the pillar."""
 
     @abstractmethod
+    def start_date(self, reference_date: date) -> date:
+        """Return the accrual start date (spot date for deposits/swaps, IMM date for futures)."""
+
+    @abstractmethod
+    def quote_value(self) -> float:
+        """Return the raw market observable (rate for deposits/OIS/swaps, price for futures)."""
+
+    @abstractmethod
     def initial_guess(self) -> float:
         """Return the Newton-Raphson seed for the zero rate at this pillar."""
 
@@ -132,6 +140,14 @@ class DepositQuote(MarketQuote):
         """Return the deposit maturity date (spot + tenor, BDC-adjusted)."""
         cal = HolidayCalendar(self.calendar)
         return _add_tenor(self._spot(reference_date), self.tenor, cal, self.bdc)
+
+    def start_date(self, reference_date: date) -> date:
+        """Return the deposit start date (spot date)."""
+        return self._spot(reference_date)
+
+    def quote_value(self) -> float:
+        """Return the deposit rate."""
+        return self.rate
 
     def initial_guess(self) -> float:
         """Return the deposit rate as the NR seed."""
@@ -174,6 +190,14 @@ class FuturesQuote(MarketQuote):
         """Return the contract end date (IMM start + tenor, BDC-adjusted)."""
         cal = HolidayCalendar(self.calendar)
         return _add_tenor(self._start(), self.tenor, cal, self.bdc)
+
+    def start_date(self, reference_date: date) -> date:
+        """Return the IMM contract start date (3rd Wednesday of the contract month)."""
+        return self._start()
+
+    def quote_value(self) -> float:
+        """Return the exchange price (e.g. 95.25)."""
+        return self.price
 
     def initial_guess(self) -> float:
         """Return the convexity-adjusted futures rate as the NR seed."""
@@ -232,6 +256,14 @@ class OISQuote(MarketQuote):
         if self.maturity_reference is MaturityReference.PAYMENT_DATE:
             return cal.add_business_days(accrual_end, self.payment_lag)
         return accrual_end
+
+    def start_date(self, reference_date: date) -> date:
+        """Return the OIS start date (spot date)."""
+        return self._spot(reference_date)
+
+    def quote_value(self) -> float:
+        """Return the OIS fixed rate."""
+        return self.rate
 
     def initial_guess(self) -> float:
         """Return the OIS rate as the NR seed."""
@@ -311,6 +343,14 @@ class SwapQuote(MarketQuote):
         if self.maturity_reference is MaturityReference.PAYMENT_DATE:
             return cal.add_business_days(accrual_end, self.payment_lag)
         return accrual_end
+
+    def start_date(self, reference_date: date) -> date:
+        """Return the swap start date (spot date)."""
+        return self._spot(reference_date)
+
+    def quote_value(self) -> float:
+        """Return the swap fixed rate."""
+        return self.rate
 
     def initial_guess(self) -> float:
         """Return the swap rate as the NR seed."""
