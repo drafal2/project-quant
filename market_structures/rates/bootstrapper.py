@@ -1,5 +1,6 @@
 """Sequential zero-coupon curve bootstrapper using Newton-Raphson."""
 
+import warnings
 from collections.abc import Callable
 from datetime import date
 
@@ -8,7 +9,43 @@ from market_conventions.compounding import CompoundingFrequency, CompoundingType
 from market_structures.interpolation.interpolators import Interpolator
 
 from .curve import ZeroCurve
-from .quotes import MarketQuote
+from .quotes import DepositQuote, FuturesQuote, MarketQuote, OISQuote, SwapQuote
+
+
+# NOTE: every new MarketQuote subclass must be added to _RANK below.
+class QuoteHierarchy:
+    """Fixed priority order for resolving maturity-date collisions during bootstrapping.
+
+    When two quotes share the same maturity date the one with the lower rank wins;
+    the other is discarded with a warning. Ranks are fixed by instrument type and are
+    not user-configurable — the ordering reflects standard market-data precedence.
+    """
+
+    _RANK: dict[type, int] = {
+        DepositQuote: 1,
+        OISQuote:     2,
+        SwapQuote:    3,
+        FuturesQuote: 4,
+    }
+
+    @classmethod
+    def rank(cls, quote: MarketQuote) -> int:
+        """Return the priority rank for a quote type (lower = higher priority).
+
+        Raises TypeError if the quote type is not registered.
+        """
+        t = type(quote)
+        if t not in cls._RANK:
+            raise TypeError(
+                f"{t.__name__} is not registered in QuoteHierarchy._RANK. "
+                "Add it before use."
+            )
+        return cls._RANK[t]
+
+    @classmethod
+    def resolve(cls, a: MarketQuote, b: MarketQuote) -> tuple[MarketQuote, MarketQuote]:
+        """Return (winner, loser) for two quotes competing on the same maturity date."""
+        return (a, b) if cls.rank(a) <= cls.rank(b) else (b, a)
 
 
 class ZeroCurveBootstrapper:
@@ -38,30 +75,32 @@ class ZeroCurveBootstrapper:
     def bootstrap(self) -> ZeroCurve:
         """Run the sequential bootstrap and return the calibrated ZeroCurve.
 
-        Instruments are sorted by maturity date before solving. Raises ValueError if two
-        quotes share the same maturity date.
+        Instruments are sorted by maturity date before solving. When two quotes share the
+        same maturity date QuoteHierarchy resolves the conflict: the lower-rank quote is
+        silently discarded with a UserWarning.
         """
         sorted_quotes = sorted(self._quotes, key=lambda q: q.maturity_date(self._reference_date))
 
-        seen: set[date] = set()
+        resolved: dict[date, MarketQuote] = {}
         for q in sorted_quotes:
             mat = q.maturity_date(self._reference_date)
-            if mat in seen:
-
-# TODO: hierarchy must be established - which quote has higher priority if two quotes share the same maturity date? Do that and do not raise error, you can raise a warning instead that one quote is ignored because another quote with the same maturity date has higher priority. Priority may be an input or a global setting - decide what is better approach
-
-               raise ValueError(
-                    f"Two quotes share maturity date {mat}. "
-                    "Each pillar must be defined by exactly one instrument."
+            if mat in resolved:
+                winner, loser = QuoteHierarchy.resolve(resolved[mat], q)
+                warnings.warn(
+                    f"{type(loser).__name__} at {mat} discarded in favour of "
+                    f"{type(winner).__name__} (QuoteHierarchy rank "
+                    f"{QuoteHierarchy.rank(winner)} < {QuoteHierarchy.rank(loser)}).",
+                    UserWarning,
+                    stacklevel=2,
                 )
-            seen.add(mat)
+                resolved[mat] = winner
+            else:
+                resolved[mat] = q
 
         known_dates: list[date] = []
         known_rates: list[float] = []
 
-        for quote in sorted_quotes:
-            mat = quote.maturity_date(self._reference_date)
-
+        for mat, quote in sorted(resolved.items()):
             def objective(r: float, _mat: date = mat, _kd: list = known_dates, _kr: list = known_rates) -> float:
                 partial = ZeroCurve(
                     reference_date=self._reference_date,
