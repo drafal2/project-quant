@@ -27,8 +27,8 @@ class ZeroCurve:
             raise ValueError("pillar_dates and rates must have the same length")
         if len(pillar_dates) == 0:
             raise ValueError("at least one pillar required")
-        if any(d <= reference_date for d in pillar_dates):
-            raise ValueError("all pillar dates must be after reference_date")
+        if any(d < reference_date for d in pillar_dates):
+            raise ValueError("all pillar dates must be on or after reference_date")
         if compounding_type == CompoundingType.COMPOUNDED and compounding_frequency is None:
             raise ValueError("compounding_frequency required for COMPOUNDED compounding_type")
 
@@ -66,10 +66,19 @@ class ZeroCurve:
         return n * (df ** (-1.0 / (n * t)) - 1.0)
 
     def discount_factor(self, d: date) -> float:
-        """Return the discount factor for the given date."""
+        """Return the discount factor for the given date.
+
+        For dates before the first pillar, log-linearly interpolates between
+        the implicit (t=0, DF=1) anchor at reference_date and the first pillar,
+        rather than flat-extrapolating.
+        """
         if d == self._reference_date:
             return 1.0
-        return self._interpolator.interpolate(self._t(d), self._times, self._dfs)
+        t = self._t(d)
+        if t < self._times[0]:
+            # Log-linear from (0, 1.0) to (t_first, df_first)
+            return self._dfs[0] ** (t / self._times[0])
+        return self._interpolator.interpolate(t, self._times, self._dfs)
 
     def zero_rate(self, d: date) -> float:
         """Return the zero rate for the given date under the curve's compounding convention."""
@@ -89,8 +98,8 @@ class ZeroCurve:
 
     def add_pillar(self, d: date, rate: float) -> None:
         """Add a new pillar date and rate, inserting in sorted order."""
-        if d <= self._reference_date:
-            raise ValueError("pillar date must be after reference_date")
+        if d < self._reference_date:
+            raise ValueError("pillar date must be on or after reference_date")
         if d in self._pillar_dates:
             raise ValueError(f"pillar {d} already exists")
 

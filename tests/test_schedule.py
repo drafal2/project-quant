@@ -255,3 +255,60 @@ class TestDailySchedule:
         assert periods[0].accrual_start == date(2025, 4, 17)
         assert periods[0].accrual_end == date(2025, 4, 22)
         assert (periods[0].accrual_end - periods[0].accrual_start).days == 5
+
+
+class TestPaymentLag:
+    def test_zero_lag_default_pay_equals_adjusted_end(self):
+        # payment_lag=0 (default): pay_date == BDC-adjusted accrual_end.
+        # Use UNADJUSTED so adjusted end == raw end, making the equality trivial to verify.
+        sch = make_schedule(business_day_convention=BusinessDayConvention.UNADJUSTED)
+        for p in sch.generate():
+            assert p.pay_date == p.accrual_end
+
+    def test_positive_lag_pay_strictly_after_end(self):
+        sch = make_schedule(payment_lag=2)
+        for p in sch.generate():
+            assert p.pay_date > p.accrual_end
+
+    def test_two_biz_day_lag_midweek(self):
+        # Period end: Apr 4 2024 (Thursday, UNADJUSTED); lag=2 → Apr 5 (Fri) → Apr 8 (Mon)
+        sch = Schedule(
+            effective_date=date(2024, 1, 4),
+            termination_date=date(2024, 4, 4),
+            frequency=Frequency.QUARTERLY,
+            day_count_convention=DayCountConvention.ACT_360,
+            business_day_convention=BusinessDayConvention.UNADJUSTED,
+            calendar=CalendarType.USD,
+            payment_lag=2,
+        )
+        periods = sch.generate()
+        assert len(periods) == 1
+        assert periods[0].accrual_end == date(2024, 4, 4)  # Thursday, unadjusted
+        assert periods[0].pay_date == date(2024, 4, 8)  # +2 biz: Fri Apr 5, Mon Apr 8
+
+    def test_two_biz_day_lag_over_weekend(self):
+        # Period end: Jan 31 2025 (Friday); MODIFIED_FOLLOWING keeps it Fri; lag=2 → Mon→Tue
+        sch = Schedule(
+            effective_date=date(2024, 10, 31),
+            termination_date=date(2025, 1, 31),
+            frequency=Frequency.QUARTERLY,
+            day_count_convention=DayCountConvention.ACT_360,
+            business_day_convention=BusinessDayConvention.MODIFIED_FOLLOWING,
+            calendar=CalendarType.USD,
+            payment_lag=2,
+        )
+        periods = sch.generate()
+        last = periods[-1]
+        assert last.accrual_end == date(2025, 1, 31)  # Friday; MF keeps it in Jan
+        assert last.pay_date == date(2025, 2, 4)  # +1=Mon Feb 3, +2=Tue Feb 4
+
+    def test_negative_lag_raises(self):
+        with pytest.raises(ValueError, match="non-negative"):
+            make_schedule(payment_lag=-1)
+
+    def test_lag_does_not_affect_dcf(self):
+        # DCF is computed from raw accrual dates; payment_lag must not change it
+        sch_no_lag = make_schedule(payment_lag=0)
+        sch_lagged = make_schedule(payment_lag=5)
+        for p0, p1 in zip(sch_no_lag.generate(), sch_lagged.generate()):
+            assert p0.dcf == p1.dcf

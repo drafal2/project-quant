@@ -75,15 +75,17 @@ Shared enums used across all packages:
 
 Objects for representing market data:
 
-- **`rates/curve.py`** — `ZeroCurve`: interpolated zero-rate curve with discount factor, zero rate, and forward rate queries. Supports pluggable interpolators and compounding conventions.
+- **`rates/curve.py`** — `ZeroCurve`: interpolated zero-rate curve with discount factor, zero rate, and forward rate queries. Supports pluggable interpolators and compounding conventions. For dates before the first pillar, discount factors are log-linearly interpolated from the implicit (t=0, DF=1) anchor at `reference_date`.
+- **`rates/quotes.py`** — `MarketQuote` ABC and four concrete types: `DepositQuote`, `FuturesQuote` (IMM-dated, with convexity adjustment), `OISQuote` (self-discounting, continuous-approximation floating leg), `SwapQuote` (multi-curve: external `discount_curve`). Module-level helpers: `_parse_tenor`, `_add_spot_lag`, `_add_tenor`, `_imm_date` (3rd-Wednesday IMM date from code e.g. `"H26"`). `OISQuote` and `SwapQuote` accept `payment_lag: int = 0` (business days after accrual end) and `maturity_reference: MaturityReference` (`ACCRUAL_END` default or `PAYMENT_DATE`) controlling which date is used as the bootstrapping pillar.
+- **`rates/bootstrapper.py`** — `ZeroCurveBootstrapper`: sequential pillar-by-pillar bootstrap using Newton-Raphson with forward finite-difference derivative. Instruments sorted by maturity; raises `ValueError` on duplicate maturities, `RuntimeError` on NR non-convergence.
 - **`interpolation/interpolators.py`** — `LinearInterpolator`, `LogLinearInterpolator` (market standard for discount factors), `V2TInterpolator` (variance-to-time, for implied vol).
 
 ### Schedules Library (`schedules/`)
 
 Generates accrual schedules for fixed income instruments (IRS, bonds):
 
-- **`schedule.py`** — `Schedule` class (main entry point) and `Period` dataclass (frozen: accrual start/end, pay date, DCF). `Frequency` enum lives here (DAILY/MONTHLY/QUARTERLY/SEMI_ANNUAL/ANNUAL).
-- **`calendars.py`** — `CalendarType` enum (USD/EUR/GBP/PLN) and `HolidayCalendar` (holiday lookup + date adjustment). Lazy-caches holidays per year via `HolidayRepository`.
+- **`schedule.py`** — `Schedule` class (main entry point) and `Period` dataclass (frozen: accrual start/end, pay date, DCF). `Frequency` enum lives here (DAILY/MONTHLY/QUARTERLY/SEMI_ANNUAL/ANNUAL). `payment_lag: int = 0` offsets `pay_date` by that many business days beyond the BDC-adjusted period end.
+- **`calendars.py`** — `CalendarType` enum (USD/EUR/GBP/PLN) and `HolidayCalendar` (holiday lookup + date adjustment). Lazy-caches holidays per year via `HolidayRepository`. `add_holiday(d, persist=False)` updates cache and optionally persists to DB. `add_business_days(d, n)` advances a date by `n` business days.
 - **`day_count.py`** — `day_count_fraction()`: ACT/360, ACT/365 Fixed, 30/360 Bond Basis, ACT/ACT ISDA.
 
 ### Credit (`credit/`)
