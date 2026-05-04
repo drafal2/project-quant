@@ -567,3 +567,119 @@ class TestMaturityReference:
         curve_ae = _bootstrapper([q_ae]).bootstrap()
         curve_pd = _bootstrapper([q_pd]).bootstrap()
         assert curve_ae._pillar_dates[-1] != curve_pd._pillar_dates[-1]
+
+
+# ---------------------------------------------------------------------------
+# start_date / quote_value
+# ---------------------------------------------------------------------------
+
+class TestStartDateAndQuoteValue:
+
+    def test_deposit_start_date_is_spot(self):
+        q = DepositQuote(rate=0.04, tenor="3M", spot_lag=2, calendar=USD,
+                         business_day_convention=MF, day_count_convention=ACT360)
+        # spot = REF + 2 business days from Tuesday 2024-01-02 = 2024-01-04
+        assert q.start_date(REF) == date(2024, 1, 4)
+
+    def test_deposit_start_date_zero_lag(self):
+        q = DepositQuote(rate=0.04, tenor="1D", spot_lag=0, calendar=USD,
+                         business_day_convention=MF, day_count_convention=ACT360)
+        assert q.start_date(REF) == REF
+
+    def test_deposit_quote_value(self):
+        q = DepositQuote(rate=0.035, tenor="6M", spot_lag=2, calendar=USD,
+                         business_day_convention=MF, day_count_convention=ACT360)
+        assert q.quote_value() == pytest.approx(0.035)
+
+    def test_futures_start_date_is_imm_date(self):
+        q = FuturesQuote(price=95.25, imm_code="H26", tenor="3M", calendar=USD,
+                         business_day_convention=MF, day_count_convention=ACT360)
+        assert q.start_date(REF) == _imm_date("H26")
+
+    def test_futures_start_date_independent_of_reference(self):
+        q = FuturesQuote(price=95.25, imm_code="M26", tenor="3M", calendar=USD,
+                         business_day_convention=MF, day_count_convention=ACT360)
+        assert q.start_date(REF) == q.start_date(date(2025, 6, 1))
+
+    def test_futures_quote_value_is_exchange_price(self):
+        q = FuturesQuote(price=95.5, imm_code="H26", tenor="3M", calendar=USD,
+                         business_day_convention=MF, day_count_convention=ACT360)
+        assert q.quote_value() == pytest.approx(95.5)
+
+    def test_ois_start_date_is_spot(self):
+        q = OISQuote(rate=0.05, tenor="1Y", spot_lag=2, frequency=Frequency.ANNUAL,
+                     calendar=USD, business_day_convention=MF, day_count_convention=ACT365)
+        assert q.start_date(REF) == date(2024, 1, 4)
+
+    def test_ois_quote_value_is_fixed_rate(self):
+        q = OISQuote(rate=0.048, tenor="1Y", spot_lag=2, frequency=Frequency.ANNUAL,
+                     calendar=USD, business_day_convention=MF, day_count_convention=ACT365)
+        assert q.quote_value() == pytest.approx(0.048)
+
+    def test_swap_start_date_is_spot(self):
+        q = SwapQuote(rate=0.055, tenor="2Y", spot_lag=2,
+                      fixed_frequency=Frequency.SEMI_ANNUAL, fixed_day_count=ACT365,
+                      floating_frequency=Frequency.QUARTERLY, floating_day_count=ACT360,
+                      calendar=USD, business_day_convention=MF,
+                      discount_curve=_simple_discount_curve())
+        assert q.start_date(REF) == date(2024, 1, 4)
+
+    def test_swap_quote_value_is_fixed_rate(self):
+        q = SwapQuote(rate=0.052, tenor="3Y", spot_lag=2,
+                      fixed_frequency=Frequency.SEMI_ANNUAL, fixed_day_count=ACT365,
+                      floating_frequency=Frequency.QUARTERLY, floating_day_count=ACT360,
+                      calendar=USD, business_day_convention=MF,
+                      discount_curve=_simple_discount_curve())
+        assert q.quote_value() == pytest.approx(0.052)
+
+
+# ---------------------------------------------------------------------------
+# ZeroCurve.summary()
+# ---------------------------------------------------------------------------
+
+class TestCurveSummary:
+
+    def _bootstrap_multi(self):
+        dep = DepositQuote(rate=0.04, tenor="3M", spot_lag=2, calendar=USD,
+                           business_day_convention=MF, day_count_convention=ACT360)
+        ois = OISQuote(rate=0.045, tenor="1Y", spot_lag=2, frequency=Frequency.ANNUAL,
+                       calendar=USD, business_day_convention=MF, day_count_convention=ACT365)
+        return _bootstrapper([dep, ois]).bootstrap()
+
+    def test_summary_returns_string(self):
+        curve = self._bootstrap_multi()
+        assert isinstance(curve.summary(), str)
+
+    def test_summary_contains_instrument_types(self):
+        curve = self._bootstrap_multi()
+        s = curve.summary()
+        assert "DepositQuote" in s
+        assert "OISQuote" in s
+
+    def test_summary_contains_dates(self):
+        curve = self._bootstrap_multi()
+        s = curve.summary()
+        assert "2024-01-04" in s  # spot date
+
+    def test_summary_empty_when_no_quotes(self):
+        curve = ZeroCurve(
+            reference_date=REF,
+            pillar_dates=[date(2025, 1, 2)],
+            rates=[0.05],
+            day_count_convention=ACT365,
+        )
+        assert curve.summary() == ""
+
+    def test_summary_quote_count_matches_pillars(self):
+        curve = self._bootstrap_multi()
+        # header + separator + 2 data rows = 4 lines
+        lines = curve.summary().splitlines()
+        data_rows = [l for l in lines if not l.startswith("-") and "Type" not in l]
+        assert len(data_rows) == 2
+
+    def test_bootstrapped_curve_stores_quotes(self):
+        dep = DepositQuote(rate=0.04, tenor="3M", spot_lag=2, calendar=USD,
+                           business_day_convention=MF, day_count_convention=ACT360)
+        curve = _bootstrapper([dep]).bootstrap()
+        assert len(curve._quotes) == 1
+        assert isinstance(curve._quotes[0], DepositQuote)

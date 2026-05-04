@@ -22,6 +22,7 @@ class QuoteHierarchy:
     """
 
     _RANK: dict[type, int] = {
+        
         DepositQuote: 1,
         OISQuote:     2,
         SwapQuote:    3,
@@ -125,6 +126,7 @@ class ZeroCurveBootstrapper:
             compounding_type=self._compounding_type,
             compounding_frequency=self._compounding_frequency,
             interpolator=self._interpolator,
+            quotes=list(resolved.values()),
         )
 
     def _newton_raphson(self, f: Callable[[float], float], x0: float) -> float:
