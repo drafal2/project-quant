@@ -11,7 +11,6 @@ from .curve import ZeroCurve
 from .quotes import MarketQuote
 
 
-# TODO: bootstrapping may be a method of ZeroCurve instead of a separate class, but it may be cleaner to keep the solver logic separate from the data structure - consider both approaches and decide which is better, it allows to store market data and zero rates in the same object
 class ZeroCurveBootstrapper:
     """Bootstraps a ZeroCurve from market quotes using sequential Newton-Raphson."""
 
