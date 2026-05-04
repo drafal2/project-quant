@@ -49,6 +49,8 @@ The `examples/` folder contains Jupyter notebooks that demonstrate each library 
 
 | Package | Description |
 |---|---|
+| `credit` | Single-name CDS pricing: survival curve bootstrap, par spread, MTM, CS01, RR01 |
+| `market_structures` | Zero curve with pluggable interpolators; interpolation primitives |
 | `schedules` | Accrual schedule generation for fixed income instruments (IRS, bonds) |
 | `database` | SQLite connection and per-domain table management |
 | `scripts` | Database initialisation and seeding |
