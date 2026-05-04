@@ -6,6 +6,7 @@ import pytest
 
 from market_conventions import BusinessDayConvention, DayCountConvention, StubType
 from market_structures.rates.bootstrapper import ZeroCurveBootstrapper
+from market_structures.rates.bootstrapper import QuoteHierarchy
 from market_structures.rates.quotes import (
     DepositQuote,
     FuturesQuote,
@@ -379,14 +380,82 @@ class TestMixedBootstrap:
 # Edge cases
 # ---------------------------------------------------------------------------
 
+class TestQuoteHierarchy:
+    def test_deposit_beats_ois(self):
+        dep = DepositQuote(rate=0.05, tenor="3M", spot_lag=2, calendar=USD,
+                           business_day_convention=MF, day_count_convention=ACT360)
+        ois = OISQuote(rate=0.05, tenor="3M", spot_lag=2, frequency=Frequency.ANNUAL,
+                       calendar=USD, business_day_convention=MF, day_count_convention=ACT365)
+        winner, loser = QuoteHierarchy.resolve(dep, ois)
+        assert isinstance(winner, DepositQuote)
+        assert isinstance(loser, OISQuote)
+
+    def test_ois_beats_swap(self):
+        ois = OISQuote(rate=0.05, tenor="1Y", spot_lag=2, frequency=Frequency.ANNUAL,
+                       calendar=USD, business_day_convention=MF, day_count_convention=ACT365)
+        swp = SwapQuote(rate=0.05, tenor="1Y", spot_lag=2,
+                        fixed_frequency=Frequency.SEMI_ANNUAL, fixed_day_count=ACT365,
+                        floating_frequency=Frequency.QUARTERLY, floating_day_count=ACT360,
+                        calendar=USD, business_day_convention=MF,
+                        discount_curve=_simple_discount_curve())
+        winner, loser = QuoteHierarchy.resolve(ois, swp)
+        assert isinstance(winner, OISQuote)
+        assert isinstance(loser, SwapQuote)
+
+    def test_swap_beats_futures(self):
+        swp = SwapQuote(rate=0.05, tenor="1Y", spot_lag=2,
+                        fixed_frequency=Frequency.SEMI_ANNUAL, fixed_day_count=ACT365,
+                        floating_frequency=Frequency.QUARTERLY, floating_day_count=ACT360,
+                        calendar=USD, business_day_convention=MF,
+                        discount_curve=_simple_discount_curve())
+        fut = FuturesQuote(price=95.0, imm_code="H25", tenor="3M", calendar=USD,
+                           business_day_convention=MF, day_count_convention=ACT360)
+        winner, loser = QuoteHierarchy.resolve(swp, fut)
+        assert isinstance(winner, SwapQuote)
+        assert isinstance(loser, FuturesQuote)
+
+    def test_resolve_is_symmetric(self):
+        dep = DepositQuote(rate=0.05, tenor="3M", spot_lag=2, calendar=USD,
+                           business_day_convention=MF, day_count_convention=ACT360)
+        fut = FuturesQuote(price=95.0, imm_code="H25", tenor="3M", calendar=USD,
+                           business_day_convention=MF, day_count_convention=ACT360)
+        w1, l1 = QuoteHierarchy.resolve(dep, fut)
+        w2, l2 = QuoteHierarchy.resolve(fut, dep)
+        assert type(w1) == type(w2)
+        assert type(l1) == type(l2)
+
+    def test_unregistered_type_raises(self):
+        class UnknownQuote(DepositQuote):
+            pass
+        q = UnknownQuote(rate=0.05, tenor="3M", spot_lag=2, calendar=USD,
+                         business_day_convention=MF, day_count_convention=ACT360)
+        with pytest.raises(TypeError, match="not registered"):
+            QuoteHierarchy.rank(q)
+
+    def test_collision_emits_warning_and_winner_survives(self):
+        dep = DepositQuote(rate=0.049, tenor="3M", spot_lag=2, calendar=USD,
+                           business_day_convention=MF, day_count_convention=ACT360)
+        ois = OISQuote(rate=0.052, tenor="3M", spot_lag=2, frequency=Frequency.ANNUAL,
+                       calendar=USD, business_day_convention=MF, day_count_convention=ACT365)
+        assert dep.maturity_date(REF) == ois.maturity_date(REF)
+        with pytest.warns(UserWarning, match="OISQuote.*discarded.*DepositQuote"):
+            curve = _bootstrapper([dep, ois]).bootstrap()
+        assert len(curve._pillar_dates) == 1
+        assert abs(dep.npv(REF, curve)) < ROUND_TRIP_TOL
+
+    def test_collision_loser_does_not_round_trip(self):
+        dep = DepositQuote(rate=0.049, tenor="3M", spot_lag=2, calendar=USD,
+                           business_day_convention=MF, day_count_convention=ACT360)
+        ois = OISQuote(rate=0.060, tenor="3M", spot_lag=2, frequency=Frequency.ANNUAL,
+                       calendar=USD, business_day_convention=MF, day_count_convention=ACT365)
+        assert dep.maturity_date(REF) == ois.maturity_date(REF)
+        with pytest.warns(UserWarning):
+            curve = _bootstrapper([dep, ois]).bootstrap()
+        assert abs(dep.npv(REF, curve)) < ROUND_TRIP_TOL
+        assert abs(ois.npv(REF, curve)) > 1e-6
+
+
 class TestEdgeCases:
-    def test_duplicate_maturity_raises(self):
-        q1 = DepositQuote(rate=0.048, tenor="3M", spot_lag=2, calendar=USD,
-                          business_day_convention=MF, day_count_convention=ACT360)
-        q2 = DepositQuote(rate=0.050, tenor="3M", spot_lag=2, calendar=USD,
-                          business_day_convention=MF, day_count_convention=ACT360)
-        with pytest.raises(ValueError, match="maturity date"):
-            _bootstrapper([q1, q2]).bootstrap()
 
     def test_nr_non_convergence_raises(self):
         bootstrapper = ZeroCurveBootstrapper(

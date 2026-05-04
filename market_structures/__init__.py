@@ -8,6 +8,7 @@ from .rates import (
     FuturesQuote,
     OISQuote,
     SwapQuote,
+    QuoteHierarchy,
     ZeroCurveBootstrapper,
 )
 from .interpolation import LinearInterpolator, LogLinearInterpolator, V2TInterpolator
@@ -20,6 +21,7 @@ __all__ = [
     "FuturesQuote",
     "OISQuote",
     "SwapQuote",
+    "QuoteHierarchy",
     "ZeroCurveBootstrapper",
     "LinearInterpolator",
     "LogLinearInterpolator",
