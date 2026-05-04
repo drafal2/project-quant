@@ -312,3 +312,49 @@ class TestPaymentLag:
         sch_lagged = make_schedule(payment_lag=5)
         for p0, p1 in zip(sch_no_lag.generate(), sch_lagged.generate()):
             assert p0.dcf == p1.dcf
+
+
+class TestSummary:
+    """Tests for Schedule.summary()."""
+
+    def test_returns_string(self):
+        assert isinstance(make_schedule().summary(), str)
+
+    def test_header_contains_parameters(self):
+        sch = make_schedule(payment_lag=2)
+        out = sch.summary()
+        assert "2024-03-20" in out
+        assert "2026-03-20" in out
+        assert "SEMI_ANNUAL" in out
+        assert "ACT_360" in out
+        assert "MODIFIED_FOLLOWING" in out
+        assert "USD" in out
+        assert "2" in out
+
+    def test_table_row_count_matches_periods(self):
+        sch = make_schedule()
+        periods = sch.generate()
+        rows = [
+            line for line in sch.summary().splitlines()
+            if line.strip() and line.strip()[0].isdigit()
+        ]
+        assert len(rows) == len(periods)
+
+    def test_column_headers_present(self):
+        out = make_schedule().summary()
+        assert "Accrual Start" in out
+        assert "Accrual End" in out
+        assert "Pay Date" in out
+        assert "Days" in out
+        assert "DCF" in out
+
+    def test_dcf_formatted_to_four_decimal_places(self):
+        out = make_schedule().summary()
+        data_lines = [
+            line for line in out.splitlines()
+            if line.strip() and line.strip()[0].isdigit()
+        ]
+        for line in data_lines:
+            dcf_str = line.split()[-1]
+            assert "." in dcf_str
+            assert len(dcf_str.split(".")[1]) == 4
