@@ -66,6 +66,7 @@ class Schedule:
         self._frequency = frequency
         self._dcc = day_count_convention
         self._bdc = business_day_convention
+        self._calendar_type = calendar
         self._calendar = HolidayCalendar(calendar)
         self._eom = end_of_month
         self._stub_type = stub_type
@@ -86,6 +87,37 @@ class Schedule:
     def __len__(self):
         """Return the number of periods in the schedule."""
         return len(self.generate())
+
+    def summary(self) -> str:
+        """Return a formatted summary with a parameter header block and a per-period table."""
+        periods = self.generate()
+        header = (
+            f"{'#':>3}  {'Accrual Start':>13}  {'Accrual End':>11}"
+            f"  {'Pay Date':>10}  {'Days':>4}  {'DCF':>8}"
+        )
+        width = len(header)
+        label_w = 18
+        lines = [
+            "Schedule Summary",
+            "=" * width,
+            f"{'Effective Date':<{label_w}}: {self._effective}",
+            f"{'Termination Date':<{label_w}}: {self._termination}",
+            f"{'Frequency':<{label_w}}: {self._frequency.name}",
+            f"{'Day Count':<{label_w}}: {self._dcc.name}",
+            f"{'Business Day Conv':<{label_w}}: {self._bdc.name}",
+            f"{'Calendar':<{label_w}}: {self._calendar_type.value}",
+            f"{'Payment Lag':<{label_w}}: {self._payment_lag}",
+            "",
+            header,
+            "-" * width,
+        ]
+        for i, p in enumerate(periods, 1):
+            days = (p.accrual_end - p.accrual_start).days
+            lines.append(
+                f"{i:>3}  {str(p.accrual_start):>13}  {str(p.accrual_end):>11}"
+                f"  {str(p.pay_date):>10}  {days:>4}  {p.dcf:>8.4f}"
+            )
+        return "\n".join(lines)
 
     def _add_months(self, d: date, n: int) -> date:
         """Add n months to a date, respecting the end-of-month convention."""
