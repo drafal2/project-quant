@@ -150,3 +150,39 @@ class TestBusinessDayAdjustment:
         # Following would land on Jan 3 2023 (crosses month) → falls back to Dec 30 2022
         result = self.usd.adjust(date(2022, 12, 31), BusinessDayConvention.MODIFIED_FOLLOWING)
         assert result == date(2022, 12, 30)
+
+
+class TestAddHoliday:
+    def test_cache_only_marks_as_holiday(self):
+        cal = HolidayCalendar(CalendarType.USD)
+        d = date(2025, 3, 14)  # Pi Day — not a real USD holiday
+        assert not cal.is_holiday(d)
+        cal.add_holiday(d)
+        assert cal.is_holiday(d)
+
+    def test_cache_only_not_in_fresh_calendar(self):
+        cal = HolidayCalendar(CalendarType.USD)
+        d = date(2025, 3, 14)
+        cal.add_holiday(d)
+        fresh_cal = HolidayCalendar(CalendarType.USD)
+        assert not fresh_cal.is_holiday(d)
+
+    def test_persist_visible_to_fresh_calendar(self):
+        cal = HolidayCalendar(CalendarType.USD)
+        d = date(2025, 3, 14)
+        cal.add_holiday(d, description="Pi Day", persist=True)
+        fresh_cal = HolidayCalendar(CalendarType.USD)
+        assert fresh_cal.is_holiday(d)
+
+    def test_affects_is_business_day(self):
+        cal = HolidayCalendar(CalendarType.USD)
+        d = date(2025, 3, 14)  # Friday
+        assert cal.is_business_day(d)
+        cal.add_holiday(d)
+        assert not cal.is_business_day(d)
+
+    def test_idempotent_for_existing_holiday(self):
+        cal = HolidayCalendar(CalendarType.USD)
+        d = date(2024, 1, 1)  # already a holiday
+        cal.add_holiday(d)
+        assert cal.is_holiday(d)
