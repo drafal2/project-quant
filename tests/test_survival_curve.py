@@ -5,14 +5,11 @@ from datetime import date
 
 import pytest
 
-from market_conventions import BusinessDayConvention, DayCountConvention, StubType
-from market_conventions import CompoundingType
+from market_conventions import CompoundingType, DayCountConvention
 from market_structures import ZeroCurve
-from schedules import CalendarType, Frequency
 from schedules.day_count import day_count_fraction
-from credit import SurvivalCurve
+from credit import SurvivalCurve, CdsQuote
 from credit.survival_curve import _par_spread_from_schedule
-from schedules import Schedule
 
 REF = date(2024, 1, 2)
 P12 = date(2025, 1, 2)
@@ -197,26 +194,31 @@ class TestAddRemovePillar:
         assert len(sc._cumulative_hazard) == 3
 
 
-class TestFromSpreads:
+TENORS = ["1Y", "3Y", "5Y"]
+SPREADS_BOOT = [0.01, 0.012, 0.015]
+
+
+def make_cds_quotes(tenors=None, spreads=None):
+    """Build CdsQuote list with default conventions."""
+    if tenors is None:
+        tenors = TENORS
+    if spreads is None:
+        spreads = SPREADS_BOOT
+    return [CdsQuote(spread=s, tenor=t) for s, t in zip(spreads, tenors)]
+
+
+class TestFromCdsSpreads:
     def setup_method(self):
         self.dc = make_discount_curve()
-        self.pillars = [P12, P36, P60]
-        self.spreads = [0.01, 0.012, 0.015]
-        self.sc = SurvivalCurve.from_spreads(
-            REF, self.pillars, self.spreads, self.dc, recovery_rate=0.40
+        self.quotes = make_cds_quotes()
+        self.spreads = SPREADS_BOOT
+        self.sc = SurvivalCurve.from_cds_spreads(
+            REF, self.quotes, self.dc, recovery_rate=0.40
         )
+        self.pillar_dates = [q.maturity_date(REF) for q in self.quotes]
 
     def _par_at_pillar(self, idx):
-        d = self.pillars[idx]
-        periods = Schedule(
-            effective_date=REF,
-            termination_date=d,
-            frequency=Frequency.QUARTERLY,
-            day_count_convention=DayCountConvention.ACT_360,
-            business_day_convention=BusinessDayConvention.FOLLOWING,
-            calendar=CalendarType.USD,
-            stub_type=StubType.SHORT_FRONT,
-        ).generate()
+        periods = self.quotes[idx].schedule(REF)
         return _par_spread_from_schedule(periods, self.dc, self.sc, 0.40)
 
     def test_round_trip_pillar_1(self):
@@ -235,16 +237,23 @@ class TestFromSpreads:
         assert all(h > 0 for h in self.sc._hazard_rates)
 
     def test_survival_probabilities_valid(self):
-        for d in self.pillars:
+        for d in self.pillar_dates:
             q = self.sc.survival_probability(d)
             assert 0.0 < q < 1.0
+
+    def test_quotes_sorted_by_maturity(self):
+        quotes = make_cds_quotes(["5Y", "1Y", "3Y"], [0.015, 0.01, 0.012])
+        sc = SurvivalCurve.from_cds_spreads(REF, quotes, self.dc, recovery_rate=0.40)
+        expected = sorted(q.maturity_date(REF) for q in quotes)
+        assert sc._pillar_dates == expected
 
 
 class TestBump:
     def setup_method(self):
         self.dc = make_discount_curve()
-        self.sc = SurvivalCurve.from_spreads(
-            REF, [P12, P36, P60], [0.01, 0.012, 0.015], self.dc, recovery_rate=0.40
+        quotes = make_cds_quotes()
+        self.sc = SurvivalCurve.from_cds_spreads(
+            REF, quotes, self.dc, recovery_rate=0.40
         )
 
     def test_raises_if_not_bootstrapped(self):

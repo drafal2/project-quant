@@ -13,10 +13,8 @@ from market_structures.rates.quotes import (
     MaturityReference,
     OISQuote,
     SwapQuote,
-    _add_spot_lag,
-    _imm_date,
-    _parse_tenor,
 )
+from schedules.date_utils import add_spot_lag, imm_date, parse_tenor
 from market_structures.rates.curve import ZeroCurve
 from schedules.calendars import CalendarType, HolidayCalendar
 from schedules.schedule import Frequency
@@ -56,69 +54,69 @@ def _simple_discount_curve():
 
 class TestParseTenor:
     def test_months(self):
-        assert _parse_tenor("3M") == (3, "M")
+        assert parse_tenor("3M") == (3, "M")
 
     def test_years(self):
-        assert _parse_tenor("2Y") == (2, "Y")
+        assert parse_tenor("2Y") == (2, "Y")
 
     def test_weeks(self):
-        assert _parse_tenor("1W") == (1, "W")
+        assert parse_tenor("1W") == (1, "W")
 
     def test_days(self):
-        assert _parse_tenor("7D") == (7, "D")
+        assert parse_tenor("7D") == (7, "D")
 
     def test_lowercase(self):
-        assert _parse_tenor("6m") == (6, "M")
+        assert parse_tenor("6m") == (6, "M")
 
     def test_invalid_unit(self):
         with pytest.raises(ValueError, match="Unrecognised tenor unit"):
-            _parse_tenor("3X")
+            parse_tenor("3X")
 
     def test_zero_quantity(self):
         with pytest.raises(ValueError, match="positive"):
-            _parse_tenor("0M")
+            parse_tenor("0M")
 
 
 class TestAddSpotLag:
     def test_zero_lag(self):
         d = date(2024, 1, 2)
         cal = HolidayCalendar(USD)
-        assert _add_spot_lag(d, 0, cal) == d
+        assert add_spot_lag(d, 0, cal) == d
 
     def test_skips_weekend(self):
         # 2024-01-05 is a Friday; +1 biz day = Monday 2024-01-08
         cal = HolidayCalendar(USD)
-        assert _add_spot_lag(date(2024, 1, 5), 1, cal) == date(2024, 1, 8)
+        assert add_spot_lag(date(2024, 1, 5), 1, cal) == date(2024, 1, 8)
 
     def test_two_biz_days_from_tuesday(self):
         # 2024-01-02 (Tue) + 2 biz = 2024-01-04 (Thu)
         cal = HolidayCalendar(USD)
-        assert _add_spot_lag(REF, 2, cal) == date(2024, 1, 4)
+        assert add_spot_lag(REF, 2, cal) == date(2024, 1, 4)
 
 
 class TestIMMDate:
     def test_H26(self):
         # March 2026: 1st = Sunday; first Wed = Mar 4; 3rd Wed = Mar 18
-        assert _imm_date("H26") == date(2026, 3, 18)
+        assert imm_date("H26") == date(2026, 3, 18)
 
     def test_M26(self):
         # June 2026: 1st = Monday; first Wed = Jun 3; 3rd Wed = Jun 17
-        assert _imm_date("M26") == date(2026, 6, 17)
+        assert imm_date("M26") == date(2026, 6, 17)
 
     def test_U26(self):
         # Sep 2026: 1st = Tuesday; first Wed = Sep 2; 3rd Wed = Sep 16
-        assert _imm_date("U26") == date(2026, 9, 16)
+        assert imm_date("U26") == date(2026, 9, 16)
 
     def test_Z26(self):
         # Dec 2026: 1st = Tuesday; first Wed = Dec 2; 3rd Wed = Dec 16
-        assert _imm_date("Z26") == date(2026, 12, 16)
+        assert imm_date("Z26") == date(2026, 12, 16)
 
     def test_lowercase(self):
-        assert _imm_date("h26") == date(2026, 3, 18)
+        assert imm_date("h26") == date(2026, 3, 18)
 
     def test_invalid_letter(self):
         with pytest.raises(ValueError, match="Invalid IMM month letter"):
-            _imm_date("A26")
+            imm_date("A26")
 
 
 # ---------------------------------------------------------------------------
@@ -591,10 +589,10 @@ class TestStartDateAndQuoteValue:
                          business_day_convention=MF, day_count_convention=ACT360)
         assert q.quote_value() == pytest.approx(0.035)
 
-    def test_futures_start_date_is_imm_date(self):
+    def test_futures_start_date_isimm_date(self):
         q = FuturesQuote(price=95.25, imm_code="H26", tenor="3M", calendar=USD,
                          business_day_convention=MF, day_count_convention=ACT360)
-        assert q.start_date(REF) == _imm_date("H26")
+        assert q.start_date(REF) == imm_date("H26")
 
     def test_futures_start_date_independent_of_reference(self):
         q = FuturesQuote(price=95.25, imm_code="M26", tenor="3M", calendar=USD,

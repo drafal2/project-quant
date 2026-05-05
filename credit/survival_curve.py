@@ -1,12 +1,13 @@
-"""Survival curve with piecewise-constant hazard rates and bootstrap from market CDS spreads."""
+"""Survival curve with piecewise-constant hazard rates and bootstrap from CDS spread quotes."""
 
 import math
 from bisect import bisect_left
 from datetime import date
 
-from market_conventions import BusinessDayConvention, DayCountConvention, StubType
-from schedules import CalendarType, Frequency, Schedule
+from market_conventions import DayCountConvention
 from schedules.day_count import day_count_fraction
+
+from .quotes import CdsQuote
 
 
 def _par_spread_from_schedule(periods, discount_curve, survival_curve, recovery_rate):
@@ -138,91 +139,69 @@ class SurvivalCurve:
         self._bootstrap_meta = None
 
     def bump(self, delta: float) -> "SurvivalCurve":
-        """Return a new SurvivalCurve bootstrapped with market spreads shifted by delta.
+        """Return a new SurvivalCurve bootstrapped with all spreads shifted by delta.
 
-        Raises ValueError if the curve was not created via from_spreads.
+        Raises ValueError if the curve was not created via from_cds_spreads.
         """
         if self._bootstrap_meta is None:
-            raise ValueError("bump requires a bootstrapped curve; use SurvivalCurve.from_spreads")
+            raise ValueError("bump requires a bootstrapped curve; use SurvivalCurve.from_cds_spreads")
         meta = self._bootstrap_meta
-        bumped_spreads = [s + delta for s in meta["spreads"]]
-        return SurvivalCurve.from_spreads(
+        bumped_quotes = [q.bumped(delta) for q in meta["quotes"]]
+        return SurvivalCurve.from_cds_spreads(
             meta["reference_date"],
-            meta["pillar_dates"],
-            bumped_spreads,
+            bumped_quotes,
             meta["discount_curve"],
             meta["recovery_rate"],
-            meta["pay_frequency"],
-            meta["day_count_convention"],
-            meta["business_day_convention"],
-            meta["calendar"],
-            meta["stub_type"],
             meta["curve_day_count_convention"],
         )
 
     @classmethod
-    def from_spreads(
+    def from_cds_spreads(
         cls,
         reference_date: date,
-        pillar_dates: list[date],
-        spreads: list[float],
+        quotes: list[CdsQuote],
         discount_curve,
         recovery_rate: float,
-        pay_frequency: Frequency = Frequency.QUARTERLY,
-        day_count_convention: DayCountConvention = DayCountConvention.ACT_360,
-        business_day_convention: BusinessDayConvention = BusinessDayConvention.FOLLOWING,
-        calendar: CalendarType = CalendarType.USD,
-        stub_type: StubType = StubType.SHORT_FRONT,
         curve_day_count_convention: DayCountConvention = DayCountConvention.ACT_365_FIXED,
     ) -> "SurvivalCurve":
-        """Bootstrap a SurvivalCurve from market CDS spread quotes.
+        """Bootstrap a SurvivalCurve from a list of CdsQuote objects.
 
-        Solves for piecewise-constant hazard rates using bisection per pillar so that
-        the implied par spread at each pillar matches the given market spread.
-        Spreads are in decimal (0.01 = 100 bps).
+        Quotes are sorted by maturity date before solving. Solves for piecewise-constant
+        hazard rates using bisection per pillar so that the implied par spread matches
+        each quote's market spread. recovery_rate is applied uniformly across all pillars.
         """
+        sorted_quotes = sorted(quotes, key=lambda q: q.maturity_date(reference_date))
+        pillar_dates = [q.maturity_date(reference_date) for q in sorted_quotes]
+
         bootstrap_meta = {
             "reference_date": reference_date,
-            "pillar_dates": list(pillar_dates),
-            "spreads": list(spreads),
+            "quotes": sorted_quotes,
             "discount_curve": discount_curve,
             "recovery_rate": recovery_rate,
-            "pay_frequency": pay_frequency,
-            "day_count_convention": day_count_convention,
-            "business_day_convention": business_day_convention,
-            "calendar": calendar,
-            "stub_type": stub_type,
             "curve_day_count_convention": curve_day_count_convention,
         }
 
         known_rates: list[float] = []
-        for i, (d, s) in enumerate(zip(pillar_dates, spreads)):
-            periods = Schedule(
-                effective_date=reference_date,
-                termination_date=d,
-                frequency=pay_frequency,
-                day_count_convention=day_count_convention,
-                business_day_convention=business_day_convention,
-                calendar=calendar,
-                stub_type=stub_type,
-            ).generate()
-
+        for i, q in enumerate(sorted_quotes):
+            periods = q.schedule(reference_date)
+            s = q.quote_value()
             lo, hi = 1e-9, 100.0
 
-            def objective(lam):
+            def objective(lam, _i=i, _s=s, _periods=periods):
                 partial = cls(
                     reference_date,
-                    list(pillar_dates[: i + 1]),
+                    list(pillar_dates[:_i + 1]),
                     list(known_rates) + [lam],
                     curve_day_count_convention,
                 )
-                return _par_spread_from_schedule(periods, discount_curve, partial, recovery_rate) - s
+                return _par_spread_from_schedule(_periods, discount_curve, partial, recovery_rate) - _s
 
             f_lo = objective(lo)
             f_hi = objective(hi)
             if f_lo > 0 or f_hi < 0:
                 raise ValueError(
-                    f"bootstrap bracket failed for pillar {d}: f_lo={f_lo:.8f}, f_hi={f_hi:.8f}"
+                    f"bootstrap bracket failed for pillar {q.maturity_date()}: "
+                    f"f_lo={f_lo:.8f}, f_hi={f_hi:.8f}"
                 )
 
             mid = lo
@@ -239,6 +218,6 @@ class SurvivalCurve:
 
             known_rates.append(mid)
 
-        curve = cls(reference_date, list(pillar_dates), known_rates, curve_day_count_convention)
+        curve = cls(reference_date, pillar_dates, known_rates, curve_day_count_convention)
         curve._bootstrap_meta = bootstrap_meta
         return curve

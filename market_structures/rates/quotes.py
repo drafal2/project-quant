@@ -1,18 +1,16 @@
 """Market quote types for zero-coupon curve bootstrapping."""
 
-import calendar as _calendar
 from abc import ABC, abstractmethod
-from datetime import date, timedelta
+from datetime import date
 from enum import Enum
 
 from market_conventions import BusinessDayConvention, DayCountConvention, StubType
 from schedules.calendars import CalendarType, HolidayCalendar
+from schedules.date_utils import add_spot_lag, add_tenor, imm_date
 from schedules.day_count import day_count_fraction
 from schedules.schedule import Frequency, Schedule
 
 from .curve import ZeroCurve
-
-IMM_MONTHS = {'H': 3, 'M': 6, 'U': 9, 'Z': 12}
 
 
 class MaturityReference(Enum):
@@ -27,65 +25,6 @@ class MaturityReference(Enum):
     PAYMENT_DATE = "payment_date"
 # TODO: implement pricing models for this types of instruments and use it in bootstrapping
 # TODO: convexity adjustment calculated from FRAs also
-
-def _parse_tenor(tenor: str) -> tuple[int, str]:
-    """Parse a tenor string into (quantity, unit); unit is one of 'D', 'W', 'M', 'Y'."""
-    tenor = tenor.strip().upper()
-    unit = tenor[-1]
-    if unit not in ('D', 'W', 'M', 'Y'):
-        raise ValueError(f"Unrecognised tenor unit '{unit}' in '{tenor}'. Use D, W, M, or Y.")
-    try:
-        quantity = int(tenor[:-1])
-    except ValueError:
-        raise ValueError(f"Cannot parse quantity from tenor '{tenor}'.")
-    if quantity <= 0:
-        raise ValueError(f"Tenor quantity must be positive, got {quantity}.")
-    return quantity, unit
-
-
-def _add_spot_lag(reference_date: date, spot_lag: int, cal: HolidayCalendar) -> date:
-    """Advance reference_date by spot_lag business days."""
-    d = reference_date
-    remaining = spot_lag
-    while remaining > 0:
-        d += timedelta(days=1)
-        if cal.is_business_day(d):
-            remaining -= 1
-    return d
-
-
-def _add_tenor(start: date, tenor: str, cal: HolidayCalendar, bdc: BusinessDayConvention) -> date:
-    """Add a tenor string to a date and adjust to a business day."""
-    quantity, unit = _parse_tenor(tenor)
-    if unit == 'D':
-        raw = start + timedelta(days=quantity)
-    elif unit == 'W':
-        raw = start + timedelta(weeks=quantity)
-    else:
-        months = quantity if unit == 'M' else quantity * 12
-        total_months = start.year * 12 + (start.month - 1) + months
-        year = total_months // 12
-        month = total_months % 12 + 1
-        day = min(start.day, _calendar.monthrange(year, month)[1])
-        raw = date(year, month, day)
-    return cal.adjust(raw, bdc)
-
-
-def _imm_date(imm_code: str) -> date:
-    """Return the 3rd Wednesday (unadjusted) of the IMM contract month.
-
-    IMM code format: letter (H/M/U/Z) + two-digit year (e.g. 'H26' = March 2026).
-    """
-    imm_code = imm_code.strip().upper()
-    letter = imm_code[0]
-    if letter not in IMM_MONTHS:
-        raise ValueError(f"Invalid IMM month letter '{letter}'. Expected one of H, M, U, Z.")
-    month = IMM_MONTHS[letter]
-    year = 2000 + int(imm_code[1:])
-    first = date(year, month, 1)
-    # weekday(): Monday=0, Wednesday=2
-    days_to_first_wed = (2 - first.weekday()) % 7
-    return first + timedelta(days=days_to_first_wed + 14)
 
 
 class MarketQuote(ABC):
@@ -134,12 +73,12 @@ class DepositQuote(MarketQuote):
 
     def _spot(self, reference_date: date) -> date:
         cal = HolidayCalendar(self.calendar)
-        return _add_spot_lag(reference_date, self.spot_lag, cal)
+        return add_spot_lag(reference_date, self.spot_lag, cal)
 
     def maturity_date(self, reference_date: date) -> date:
         """Return the deposit maturity date (spot + tenor, BDC-adjusted)."""
         cal = HolidayCalendar(self.calendar)
-        return _add_tenor(self._spot(reference_date), self.tenor, cal, self.bdc)
+        return add_tenor(self._spot(reference_date), self.tenor, cal, self.bdc)
 
     def start_date(self, reference_date: date) -> date:
         """Return the deposit start date (spot date)."""
@@ -184,12 +123,12 @@ class FuturesQuote(MarketQuote):
         self.convexity_adjustment = convexity_adjustment
 
     def _start(self) -> date:
-        return _imm_date(self.imm_code)
+        return imm_date(self.imm_code)
 
     def maturity_date(self, reference_date: date) -> date:
         """Return the contract end date (IMM start + tenor, BDC-adjusted)."""
         cal = HolidayCalendar(self.calendar)
-        return _add_tenor(self._start(), self.tenor, cal, self.bdc)
+        return add_tenor(self._start(), self.tenor, cal, self.bdc)
 
     def start_date(self, reference_date: date) -> date:
         """Return the IMM contract start date (3rd Wednesday of the contract month)."""
@@ -242,7 +181,7 @@ class OISQuote(MarketQuote):
 
     def _spot(self, reference_date: date) -> date:
         cal = HolidayCalendar(self.calendar)
-        return _add_spot_lag(reference_date, self.spot_lag, cal)
+        return add_spot_lag(reference_date, self.spot_lag, cal)
 
     def maturity_date(self, reference_date: date) -> date:
         """Return the maturity date used as the bootstrapping pillar.
@@ -252,7 +191,7 @@ class OISQuote(MarketQuote):
         business days — placing the pillar at the last actual cash flow date.
         """
         cal = HolidayCalendar(self.calendar)
-        accrual_end = _add_tenor(self._spot(reference_date), self.tenor, cal, self.bdc)
+        accrual_end = add_tenor(self._spot(reference_date), self.tenor, cal, self.bdc)
         if self.maturity_reference is MaturityReference.PAYMENT_DATE:
             return cal.add_business_days(accrual_end, self.payment_lag)
         return accrual_end
@@ -329,7 +268,7 @@ class SwapQuote(MarketQuote):
 
     def _spot(self, reference_date: date) -> date:
         cal = HolidayCalendar(self.calendar)
-        return _add_spot_lag(reference_date, self.spot_lag, cal)
+        return add_spot_lag(reference_date, self.spot_lag, cal)
 
     def maturity_date(self, reference_date: date) -> date:
         """Return the maturity date used as the bootstrapping pillar.
@@ -339,7 +278,7 @@ class SwapQuote(MarketQuote):
         business days — placing the pillar at the last actual cash flow date.
         """
         cal = HolidayCalendar(self.calendar)
-        accrual_end = _add_tenor(self._spot(reference_date), self.tenor, cal, self.bdc)
+        accrual_end = add_tenor(self._spot(reference_date), self.tenor, cal, self.bdc)
         if self.maturity_reference is MaturityReference.PAYMENT_DATE:
             return cal.add_business_days(accrual_end, self.payment_lag)
         return accrual_end
