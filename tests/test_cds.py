@@ -33,7 +33,7 @@ def make_survival_curve(dc, spreads=None):
     """Bootstrap a survival curve from market CDS quotes."""
     if spreads is None:
         spreads = SPREADS
-    quotes = [CdsQuote(spread=s, maturity_date=d) for s, d in zip(spreads, [P12, P36, P60])]
+    quotes = [CdsQuote(spread=s, tenor=t) for s, t in zip(spreads, ["1Y", "3Y", "5Y"])]
     return SurvivalCurve.from_cds_spreads(REF, quotes, dc, recovery_rate=RECOVERY)
 
 

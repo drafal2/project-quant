@@ -13,10 +13,9 @@ from market_structures.rates.quotes import (
     MaturityReference,
     OISQuote,
     SwapQuote,
-    _add_spot_lag,
     _imm_date,
-    _parse_tenor,
 )
+from schedules.date_utils import add_spot_lag, parse_tenor
 from market_structures.rates.curve import ZeroCurve
 from schedules.calendars import CalendarType, HolidayCalendar
 from schedules.schedule import Frequency
@@ -56,44 +55,44 @@ def _simple_discount_curve():
 
 class TestParseTenor:
     def test_months(self):
-        assert _parse_tenor("3M") == (3, "M")
+        assert parse_tenor("3M") == (3, "M")
 
     def test_years(self):
-        assert _parse_tenor("2Y") == (2, "Y")
+        assert parse_tenor("2Y") == (2, "Y")
 
     def test_weeks(self):
-        assert _parse_tenor("1W") == (1, "W")
+        assert parse_tenor("1W") == (1, "W")
 
     def test_days(self):
-        assert _parse_tenor("7D") == (7, "D")
+        assert parse_tenor("7D") == (7, "D")
 
     def test_lowercase(self):
-        assert _parse_tenor("6m") == (6, "M")
+        assert parse_tenor("6m") == (6, "M")
 
     def test_invalid_unit(self):
         with pytest.raises(ValueError, match="Unrecognised tenor unit"):
-            _parse_tenor("3X")
+            parse_tenor("3X")
 
     def test_zero_quantity(self):
         with pytest.raises(ValueError, match="positive"):
-            _parse_tenor("0M")
+            parse_tenor("0M")
 
 
 class TestAddSpotLag:
     def test_zero_lag(self):
         d = date(2024, 1, 2)
         cal = HolidayCalendar(USD)
-        assert _add_spot_lag(d, 0, cal) == d
+        assert add_spot_lag(d, 0, cal) == d
 
     def test_skips_weekend(self):
         # 2024-01-05 is a Friday; +1 biz day = Monday 2024-01-08
         cal = HolidayCalendar(USD)
-        assert _add_spot_lag(date(2024, 1, 5), 1, cal) == date(2024, 1, 8)
+        assert add_spot_lag(date(2024, 1, 5), 1, cal) == date(2024, 1, 8)
 
     def test_two_biz_days_from_tuesday(self):
         # 2024-01-02 (Tue) + 2 biz = 2024-01-04 (Thu)
         cal = HolidayCalendar(USD)
-        assert _add_spot_lag(REF, 2, cal) == date(2024, 1, 4)
+        assert add_spot_lag(REF, 2, cal) == date(2024, 1, 4)
 
 
 class TestIMMDate:

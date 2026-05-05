@@ -170,8 +170,8 @@ class SurvivalCurve:
         hazard rates using bisection per pillar so that the implied par spread matches
         each quote's market spread. recovery_rate is applied uniformly across all pillars.
         """
-        sorted_quotes = sorted(quotes, key=lambda q: q.maturity_date())
-        pillar_dates = [q.maturity_date() for q in sorted_quotes]
+        sorted_quotes = sorted(quotes, key=lambda q: q.maturity_date(reference_date))
+        pillar_dates = [q.maturity_date(reference_date) for q in sorted_quotes]
 
         bootstrap_meta = {
             "reference_date": reference_date,
