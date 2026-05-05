@@ -6,7 +6,7 @@ import pytest
 
 from market_conventions import CompoundingType, DayCountConvention
 from market_structures import ZeroCurve
-from credit import SingleNameCDS, SurvivalCurve
+from credit import SingleNameCDS, SurvivalCurve, CdsQuote
 
 REF = date(2024, 1, 2)
 P12 = date(2025, 1, 2)
@@ -30,10 +30,11 @@ def make_discount_curve():
 
 
 def make_survival_curve(dc, spreads=None):
-    """Bootstrap a survival curve from market spreads."""
+    """Bootstrap a survival curve from market CDS quotes."""
     if spreads is None:
         spreads = SPREADS
-    return SurvivalCurve.from_spreads(REF, [P12, P36, P60], spreads, dc, recovery_rate=RECOVERY)
+    quotes = [CdsQuote(spread=s, maturity_date=d) for s, d in zip(spreads, [P12, P36, P60])]
+    return SurvivalCurve.from_cds_spreads(REF, quotes, dc, recovery_rate=RECOVERY)
 
 
 class TestConstruction:

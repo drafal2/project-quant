@@ -10,7 +10,7 @@ from market_conventions import CompoundingType
 from market_structures import ZeroCurve
 from schedules import CalendarType, Frequency
 from schedules.day_count import day_count_fraction
-from credit import SurvivalCurve
+from credit import SurvivalCurve, CdsQuote
 from credit.survival_curve import _par_spread_from_schedule
 from schedules import Schedule
 
@@ -197,13 +197,19 @@ class TestAddRemovePillar:
         assert len(sc._cumulative_hazard) == 3
 
 
-class TestFromSpreads:
+def make_cds_quotes(pillars, spreads):
+    """Build CdsQuote list with default conventions."""
+    return [CdsQuote(spread=s, maturity_date=d) for s, d in zip(spreads, pillars)]
+
+
+class TestFromCdsSpreads:
     def setup_method(self):
         self.dc = make_discount_curve()
         self.pillars = [P12, P36, P60]
         self.spreads = [0.01, 0.012, 0.015]
-        self.sc = SurvivalCurve.from_spreads(
-            REF, self.pillars, self.spreads, self.dc, recovery_rate=0.40
+        quotes = make_cds_quotes(self.pillars, self.spreads)
+        self.sc = SurvivalCurve.from_cds_spreads(
+            REF, quotes, self.dc, recovery_rate=0.40
         )
 
     def _par_at_pillar(self, idx):
@@ -239,12 +245,18 @@ class TestFromSpreads:
             q = self.sc.survival_probability(d)
             assert 0.0 < q < 1.0
 
+    def test_quotes_sorted_by_maturity(self):
+        quotes = make_cds_quotes([P60, P12, P36], [0.015, 0.01, 0.012])
+        sc = SurvivalCurve.from_cds_spreads(REF, quotes, self.dc, recovery_rate=0.40)
+        assert sc._pillar_dates == [P12, P36, P60]
+
 
 class TestBump:
     def setup_method(self):
         self.dc = make_discount_curve()
-        self.sc = SurvivalCurve.from_spreads(
-            REF, [P12, P36, P60], [0.01, 0.012, 0.015], self.dc, recovery_rate=0.40
+        quotes = make_cds_quotes([P12, P36, P60], [0.01, 0.012, 0.015])
+        self.sc = SurvivalCurve.from_cds_spreads(
+            REF, quotes, self.dc, recovery_rate=0.40
         )
 
     def test_raises_if_not_bootstrapped(self):
