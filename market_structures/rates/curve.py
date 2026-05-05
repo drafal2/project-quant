@@ -21,7 +21,7 @@ class ZeroCurve:
     def __init__(
         self,
         reference_date: date,
-        pillar_dates: list[date],
+        pillar_dates: list[date],  # TODO: it should be possible to pass tenor instead of specific date to make it more flexible
         rates: list[float],
         day_count_convention: DayCountConvention,
         compounding_type: CompoundingType = CompoundingType.CONTINUOUS,
@@ -104,7 +104,7 @@ class ZeroCurve:
         t = self._t(end) - self._t(start)
         return self._df_to_rate(df_end / df_start, t)
 
-    def summary(self) -> str:
+    def summary(self) -> str:  # TODO: quote value must be printed as whole, no rounding + in %, not number
         """Return a formatted table of bootstrapping quotes with curve outputs per pillar.
 
         Columns: instrument type, start date, maturity date, tenor, market quote,
