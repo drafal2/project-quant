@@ -13,9 +13,8 @@ from market_structures.rates.quotes import (
     MaturityReference,
     OISQuote,
     SwapQuote,
-    _imm_date,
 )
-from schedules.date_utils import add_spot_lag, parse_tenor
+from schedules.date_utils import add_spot_lag, imm_date, parse_tenor
 from market_structures.rates.curve import ZeroCurve
 from schedules.calendars import CalendarType, HolidayCalendar
 from schedules.schedule import Frequency
@@ -98,26 +97,26 @@ class TestAddSpotLag:
 class TestIMMDate:
     def test_H26(self):
         # March 2026: 1st = Sunday; first Wed = Mar 4; 3rd Wed = Mar 18
-        assert _imm_date("H26") == date(2026, 3, 18)
+        assert imm_date("H26") == date(2026, 3, 18)
 
     def test_M26(self):
         # June 2026: 1st = Monday; first Wed = Jun 3; 3rd Wed = Jun 17
-        assert _imm_date("M26") == date(2026, 6, 17)
+        assert imm_date("M26") == date(2026, 6, 17)
 
     def test_U26(self):
         # Sep 2026: 1st = Tuesday; first Wed = Sep 2; 3rd Wed = Sep 16
-        assert _imm_date("U26") == date(2026, 9, 16)
+        assert imm_date("U26") == date(2026, 9, 16)
 
     def test_Z26(self):
         # Dec 2026: 1st = Tuesday; first Wed = Dec 2; 3rd Wed = Dec 16
-        assert _imm_date("Z26") == date(2026, 12, 16)
+        assert imm_date("Z26") == date(2026, 12, 16)
 
     def test_lowercase(self):
-        assert _imm_date("h26") == date(2026, 3, 18)
+        assert imm_date("h26") == date(2026, 3, 18)
 
     def test_invalid_letter(self):
         with pytest.raises(ValueError, match="Invalid IMM month letter"):
-            _imm_date("A26")
+            imm_date("A26")
 
 
 # ---------------------------------------------------------------------------
@@ -590,10 +589,10 @@ class TestStartDateAndQuoteValue:
                          business_day_convention=MF, day_count_convention=ACT360)
         assert q.quote_value() == pytest.approx(0.035)
 
-    def test_futures_start_date_is_imm_date(self):
+    def test_futures_start_date_isimm_date(self):
         q = FuturesQuote(price=95.25, imm_code="H26", tenor="3M", calendar=USD,
                          business_day_convention=MF, day_count_convention=ACT360)
-        assert q.start_date(REF) == _imm_date("H26")
+        assert q.start_date(REF) == imm_date("H26")
 
     def test_futures_start_date_independent_of_reference(self):
         q = FuturesQuote(price=95.25, imm_code="M26", tenor="3M", calendar=USD,
