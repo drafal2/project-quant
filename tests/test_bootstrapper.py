@@ -681,3 +681,59 @@ class TestCurveSummary:
         curve = _bootstrapper([dep]).bootstrap()
         assert len(curve._quotes) == 1
         assert isinstance(curve._quotes[0], DepositQuote)
+
+
+class TestMaturityDateOverride:
+
+    def test_deposit_override_replaces_tenor(self):
+        fixed_mat = date(2025, 6, 15)
+        q = DepositQuote(rate=0.05, tenor="3M", spot_lag=2, calendar=USD,
+                         business_day_convention=MF, day_count_convention=ACT360,
+                         maturity_date=fixed_mat)
+        assert q.maturity_date(REF) == fixed_mat
+
+    def test_deposit_no_override_uses_tenor(self):
+        q_override = DepositQuote(rate=0.05, tenor="3M", spot_lag=2, calendar=USD,
+                                  business_day_convention=MF, day_count_convention=ACT360,
+                                  maturity_date=None)
+        q_default = DepositQuote(rate=0.05, tenor="3M", spot_lag=2, calendar=USD,
+                                 business_day_convention=MF, day_count_convention=ACT360)
+        assert q_override.maturity_date(REF) == q_default.maturity_date(REF)
+
+    def test_futures_override_replaces_imm_tenor(self):
+        fixed_mat = date(2025, 9, 30)
+        q = FuturesQuote(price=95.0, imm_code="H25", tenor="3M", calendar=USD,
+                         business_day_convention=MF, day_count_convention=ACT360,
+                         maturity_date=fixed_mat)
+        assert q.maturity_date(REF) == fixed_mat
+
+    def test_ois_override_bypasses_maturity_reference(self):
+        fixed_mat = date(2026, 3, 20)
+        q_override = OISQuote(rate=0.04, tenor="2Y", spot_lag=2, frequency=Frequency.ANNUAL,
+                              calendar=USD, business_day_convention=MF,
+                              day_count_convention=ACT365,
+                              payment_lag=2,
+                              maturity_reference=MaturityReference.PAYMENT_DATE,
+                              maturity_date=fixed_mat)
+        assert q_override.maturity_date(REF) == fixed_mat
+
+    def test_swap_override_bypasses_maturity_reference(self):
+        dc = _simple_discount_curve()
+        fixed_mat = date(2027, 6, 30)
+        q = SwapQuote(rate=0.04, tenor="3Y", spot_lag=2,
+                      fixed_frequency=Frequency.SEMI_ANNUAL, fixed_day_count=ACT360,
+                      floating_frequency=Frequency.QUARTERLY, floating_day_count=ACT360,
+                      calendar=USD, business_day_convention=MF,
+                      discount_curve=dc,
+                      payment_lag=2,
+                      maturity_reference=MaturityReference.PAYMENT_DATE,
+                      maturity_date=fixed_mat)
+        assert q.maturity_date(REF) == fixed_mat
+
+    def test_override_bootstraps_correctly(self):
+        fixed_mat = date(2025, 4, 2)
+        q = DepositQuote(rate=0.05, tenor="1Y", spot_lag=0, calendar=USD,
+                         business_day_convention=MF, day_count_convention=ACT365,
+                         maturity_date=fixed_mat)
+        curve = _bootstrapper([q]).bootstrap()
+        assert q.npv(REF, curve) == pytest.approx(0.0, abs=ROUND_TRIP_TOL)
