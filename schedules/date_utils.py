@@ -35,9 +35,13 @@ def add_spot_lag(reference_date: date, spot_lag: int, cal: HolidayCalendar) -> d
     return d
 
 
-def add_tenor(start: date, tenor: str, cal: HolidayCalendar, bdc: BusinessDayConvention) -> date:
+def add_tenor(start: date, 
+              tenor: str, 
+              cal: HolidayCalendar, 
+              bdc: BusinessDayConvention) -> date:
     """Add a tenor string to a date and adjust to a business day."""
     quantity, unit = parse_tenor(tenor)
+
     if unit == 'D':
         raw = start + timedelta(days=quantity)
     elif unit == 'W':
@@ -49,6 +53,7 @@ def add_tenor(start: date, tenor: str, cal: HolidayCalendar, bdc: BusinessDayCon
         month = total_months % 12 + 1
         day = min(start.day, _calendar.monthrange(year, month)[1])
         raw = date(year, month, day)
+        
     return cal.adjust(raw, bdc)
 
 
