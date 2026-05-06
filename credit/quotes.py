@@ -9,6 +9,7 @@ from schedules.calendars import HolidayCalendar
 from schedules.date_utils import add_spot_lag, add_tenor
 
 
+# TODO: it should be in common folder
 def _resolve_calendar(calendar: CalendarType | HolidayCalendar) -> HolidayCalendar:
     """Return a HolidayCalendar, constructing one from a CalendarType if necessary."""
     return calendar if isinstance(calendar, HolidayCalendar) else HolidayCalendar(calendar)

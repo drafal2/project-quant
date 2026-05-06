@@ -176,14 +176,12 @@ class Schedule:  # TODO: you need to be able to generate a schedule from start_d
         return dates
 
     def _build_periods(self, dates: List[date]) -> List[Period]:
-        """Convert a list of dates into Period objects with adjusted pay dates and DCFs."""
+        """Convert unadjusted schedule dates into BDC-adjusted Period objects."""
         periods = []
         for i in range(len(dates) - 1):
-            start = dates[i]
-            end = dates[i + 1]
-            pay = self._calendar.adjust(end, self._bdc)
-            if self._payment_lag:
-                pay = self._calendar.add_business_days(pay, self._payment_lag)
+            start = self._calendar.adjust(dates[i], self._bdc)
+            end = self._calendar.adjust(dates[i + 1], self._bdc)
+            pay = self._calendar.add_business_days(end, self._payment_lag) if self._payment_lag else end
             dcf = day_count_fraction(start, end, self._dcc)
             periods.append(Period(
                 accrual_start=start,
