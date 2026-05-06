@@ -162,6 +162,40 @@ class TestStubs:
         assert periods[0].accrual_end == date(2024, 5, 15)
         assert periods[1].accrual_end == date(2024, 8, 15)
 
+    def test_long_back_no_stub_when_exact(self):
+        # 15M quarterly = 5 full quarters: LONG_BACK must not merge the last two.
+        sch = Schedule(
+            effective_date=date(2026, 3, 20),
+            termination_date=date(2027, 6, 20),
+            frequency=Frequency.QUARTERLY,
+            day_count_convention=DayCountConvention.ACT_360,
+            business_day_convention=BusinessDayConvention.MODIFIED_FOLLOWING,
+            calendar=CalendarType.EUR,
+            stub_type=StubType.LONG_BACK,
+        )
+        periods = sch.generate()
+        assert len(periods) == 5
+        for p in periods:
+            days = (p.accrual_end - p.accrual_start).days
+            assert 85 <= days <= 95
+
+    def test_long_front_no_stub_when_exact(self):
+        # 15M quarterly = 5 full quarters: LONG_FRONT must not merge the first two.
+        sch = Schedule(
+            effective_date=date(2026, 3, 20),
+            termination_date=date(2027, 6, 20),
+            frequency=Frequency.QUARTERLY,
+            day_count_convention=DayCountConvention.ACT_360,
+            business_day_convention=BusinessDayConvention.MODIFIED_FOLLOWING,
+            calendar=CalendarType.EUR,
+            stub_type=StubType.LONG_FRONT,
+        )
+        periods = sch.generate()
+        assert len(periods) == 5
+        for p in periods:
+            days = (p.accrual_end - p.accrual_start).days
+            assert 85 <= days <= 95
+
 
 class TestFrequencies:
     def test_quarterly(self):

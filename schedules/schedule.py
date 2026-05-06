@@ -157,7 +157,8 @@ class Schedule:  # TODO: you need to be able to generate a schedule from start_d
                     break
                 dates.append(d)
             dates.append(self._termination)
-            if self._stub_type == StubType.LONG_BACK and len(dates) >= 3:
+            has_back_stub = self._add_months(dates[-2], step) != dates[-1]
+            if self._stub_type == StubType.LONG_BACK and len(dates) >= 3 and has_back_stub:
                 dates = dates[:-2] + [dates[-1]]
 
         else:
@@ -170,7 +171,8 @@ class Schedule:  # TODO: you need to be able to generate a schedule from start_d
                 dates_rev.append(d)
             dates_rev.append(self._effective)
             dates = list(reversed(dates_rev))
-            if self._stub_type == StubType.LONG_FRONT and len(dates) >= 3:
+            has_front_stub = self._add_months(dates[0], step) != dates[1]
+            if self._stub_type == StubType.LONG_FRONT and len(dates) >= 3 and has_front_stub:
                 dates = [dates[0]] + dates[2:]
 
         return dates
