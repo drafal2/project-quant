@@ -89,16 +89,6 @@ Generates accrual schedules for fixed income instruments (IRS, bonds):
 - **`day_count.py`** — `day_count_fraction()`: ACT/360, ACT/365 Fixed, 30/360 Bond Basis, ACT/ACT ISDA.
 - **`date_utils.py`** — shared calendar-arithmetic utilities imported by rate and CDS quote types: `parse_tenor`, `add_spot_lag`, `add_tenor`, `imm_date` (3rd-Wednesday IMM date from code e.g. `"H26"`).
 
-### Credit (`credit/`)
-
-Prices single-name Credit Default Swaps using a bootstrapped survival curve:
-
-- **`quotes.py`** — `CdsQuote`: tenor-based CDS spread quote bundling spread, tenor, spot_lag, pay_frequency, calendar, bdc, dcc, stub_type, `payment_lag: int = 0`, and `maturity_reference: MaturityReference` (`ACCRUAL_END` default or `PAYMENT_DATE`). `maturity_date(reference_date)` and `schedule(reference_date)` resolve dates lazily at bootstrap time. `bumped(delta)` returns a new quote with shifted spread.
-- **`survival_curve.py`** — `SurvivalCurve`: piecewise-constant hazard rate curve. `from_cds_spreads(reference_date, quotes, discount_curve, recovery_rate)` classmethod bootstraps from a `list[CdsQuote]` via bisection per pillar. `bump(delta)` re-bootstraps via `CdsQuote.bumped(delta)` for CS01. Module-level `_par_spread_from_schedule()` helper used by bootstrap and tests.
-- **`cds.py`** — `SingleNameCDS`: pricer with `premium_leg_pv`, `protection_leg_pv`, `rpv01`, `par_spread`, `mtm`, `cs01` (1 bp bump-and-rebootstrap), and `rr01` (1% recovery bump, sticky hazard rates).
-
-Protection and accrued-premium integrals use the midpoint discount factor approximation: `df_avg * (Q_s − Q_e)`, which correctly vanishes at zero hazard rate.
-
 ### Tests (`tests/`)
 
 - **`conftest.py`** — `seeded_test_db` autouse fixture: redirects the global DB to a temp file, calls `init_db()`, and seeds holidays for 2020–2029. All tests run in isolation with no access to `quant.db`.
