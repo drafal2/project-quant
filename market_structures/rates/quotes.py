@@ -67,20 +67,32 @@ class DepositQuote(MarketQuote):
         calendar: CalendarType | HolidayCalendar,
         business_day_convention: BusinessDayConvention,
         day_count_convention: DayCountConvention,
+        maturity_date: date | None = None,
     ) -> None:
-        """Initialise a deposit quote."""
+        """Initialise a deposit quote.
+
+        If ``maturity_date`` is provided it is used as the pillar date directly,
+        bypassing tenor-based computation.
+        """
         self.rate = rate
         self.tenor = tenor
         self.spot_lag = spot_lag
         self._cal = _resolve_calendar(calendar)
         self.bdc = business_day_convention
         self.dcc = day_count_convention
+        self._maturity_override = maturity_date
 
     def _spot(self, reference_date: date) -> date:
         return add_spot_lag(reference_date, self.spot_lag, self._cal)
 
     def maturity_date(self, reference_date: date) -> date:
-        """Return the deposit maturity date (spot + tenor, BDC-adjusted)."""
+        """Return the deposit maturity date.
+
+        Returns the override date if one was supplied at construction; otherwise
+        computes spot + tenor BDC-adjusted.
+        """
+        if self._maturity_override is not None:
+            return self._maturity_override
         return add_tenor(self._spot(reference_date), self.tenor, self._cal, self.bdc)
 
     def start_date(self, reference_date: date) -> date:
@@ -115,8 +127,13 @@ class FuturesQuote(MarketQuote):
         business_day_convention: BusinessDayConvention,
         day_count_convention: DayCountConvention,
         convexity_adjustment: float = 0.0,
+        maturity_date: date | None = None,
     ) -> None:
-        """Initialise a futures quote; price is the exchange price (e.g. 94.5)."""
+        """Initialise a futures quote; price is the exchange price (e.g. 94.5).
+
+        If ``maturity_date`` is provided it is used as the pillar date directly,
+        bypassing IMM start + tenor computation.
+        """
         self.price = price
         self.imm_code = imm_code
         self.tenor = tenor
@@ -124,12 +141,19 @@ class FuturesQuote(MarketQuote):
         self.bdc = business_day_convention
         self.dcc = day_count_convention
         self.convexity_adjustment = convexity_adjustment
+        self._maturity_override = maturity_date
 
     def _start(self) -> date:
         return imm_date(self.imm_code)
 
     def maturity_date(self, reference_date: date) -> date:
-        """Return the contract end date (IMM start + tenor, BDC-adjusted)."""
+        """Return the contract end date.
+
+        Returns the override date if one was supplied at construction; otherwise
+        computes IMM start + tenor BDC-adjusted.
+        """
+        if self._maturity_override is not None:
+            return self._maturity_override
         return add_tenor(self._start(), self.tenor, self._cal, self.bdc)
 
     def start_date(self, reference_date: date) -> date:
@@ -168,8 +192,13 @@ class OISQuote(MarketQuote):
         stub_type: StubType = StubType.SHORT_BACK,
         payment_lag: int = 0,
         maturity_reference: MaturityReference = MaturityReference.ACCRUAL_END,
+        maturity_date: date | None = None,
     ) -> None:
-        """Initialise an OIS quote."""
+        """Initialise an OIS quote.
+
+        If ``maturity_date`` is provided it is used as the pillar date directly,
+        bypassing tenor computation and ``maturity_reference`` logic.
+        """
         self.rate = rate
         self.tenor = tenor
         self.spot_lag = spot_lag
@@ -180,6 +209,7 @@ class OISQuote(MarketQuote):
         self.stub_type = stub_type
         self.payment_lag = payment_lag
         self.maturity_reference = maturity_reference
+        self._maturity_override = maturity_date
 
     def _spot(self, reference_date: date) -> date:
         return add_spot_lag(reference_date, self.spot_lag, self._cal)
@@ -187,10 +217,13 @@ class OISQuote(MarketQuote):
     def maturity_date(self, reference_date: date) -> date:
         """Return the maturity date used as the bootstrapping pillar.
 
-        With MaturityReference.ACCRUAL_END (default) this is spot + tenor BDC-adjusted.
-        With MaturityReference.PAYMENT_DATE it is the accrual end advanced by payment_lag
-        business days — placing the pillar at the last actual cash flow date.
+        Returns the override date if one was supplied at construction. Otherwise,
+        with ``MaturityReference.ACCRUAL_END`` (default) this is spot + tenor
+        BDC-adjusted; with ``MaturityReference.PAYMENT_DATE`` it is the accrual
+        end advanced by ``payment_lag`` business days.
         """
+        if self._maturity_override is not None:
+            return self._maturity_override
         accrual_end = add_tenor(self._spot(reference_date), self.tenor, self._cal, self.bdc)
         if self.maturity_reference is MaturityReference.PAYMENT_DATE:
             return self._cal.add_business_days(accrual_end, self.payment_lag)
@@ -250,8 +283,13 @@ class SwapQuote(MarketQuote):
         stub_type: StubType = StubType.SHORT_BACK,
         payment_lag: int = 0,
         maturity_reference: MaturityReference = MaturityReference.ACCRUAL_END,
+        maturity_date: date | None = None,
     ) -> None:
-        """Initialise a swap quote with an external discount curve for multi-curve pricing."""
+        """Initialise a swap quote with an external discount curve for multi-curve pricing.
+
+        If ``maturity_date`` is provided it is used as the pillar date directly,
+        bypassing tenor computation and ``maturity_reference`` logic.
+        """
         self.rate = rate
         self.tenor = tenor
         self.spot_lag = spot_lag
@@ -265,6 +303,7 @@ class SwapQuote(MarketQuote):
         self.stub_type = stub_type
         self.payment_lag = payment_lag
         self.maturity_reference = maturity_reference
+        self._maturity_override = maturity_date
 
     def _spot(self, reference_date: date) -> date:
         return add_spot_lag(reference_date, self.spot_lag, self._cal)
@@ -272,10 +311,13 @@ class SwapQuote(MarketQuote):
     def maturity_date(self, reference_date: date) -> date:
         """Return the maturity date used as the bootstrapping pillar.
 
-        With MaturityReference.ACCRUAL_END (default) this is spot + tenor BDC-adjusted.
-        With MaturityReference.PAYMENT_DATE it is the accrual end advanced by payment_lag
-        business days — placing the pillar at the last actual cash flow date.
+        Returns the override date if one was supplied at construction. Otherwise,
+        with ``MaturityReference.ACCRUAL_END`` (default) this is spot + tenor
+        BDC-adjusted; with ``MaturityReference.PAYMENT_DATE`` it is the accrual
+        end advanced by ``payment_lag`` business days.
         """
+        if self._maturity_override is not None:
+            return self._maturity_override
         accrual_end = add_tenor(self._spot(reference_date), self.tenor, self._cal, self.bdc)
         if self.maturity_reference is MaturityReference.PAYMENT_DATE:
             return self._cal.add_business_days(accrual_end, self.payment_lag)
