@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date
 from enum import Enum
 
 from market_structures.rates.curve import ZeroCurve
-from schedules.schedule import Period
+from schedules.schedule import Period, Schedule
 
 from .curve import CreditCurve
-from .quotes import CdsQuote
 
 
 class CdsSide(Enum):
@@ -29,12 +27,15 @@ class SingleNameCDS:
     the limit of vanishing accrual length and consistent with standard market
     practice. Recovery is paid at the default time and a constant recovery rate
     is assumed across the life of the trade.
+
+    For a new trade pass ``quote.schedule(reference_date)`` as the schedule.
+    For a mid-life trade construct a ``Schedule`` from the last coupon date to
+    maturity and pass that instead; the pricer is agnostic to trade age.
     """
 
     def __init__(
         self,
-        reference_date: date,
-        periods: list[Period],
+        schedule: Schedule,
         spread: float,
         recovery_rate: float,
         zero_curve: ZeroCurve,
@@ -42,44 +43,21 @@ class SingleNameCDS:
         notional: float = 1.0,
         side: CdsSide = CdsSide.BUYER,
     ) -> None:
-        """Initialise a CDS pricer with a fully-resolved premium-leg schedule."""
+        """Initialise a CDS pricer from a ``Schedule`` and market/model inputs."""
+        periods = schedule.generate()
         if not periods:
             raise ValueError("at least one accrual period required")
         if spread < 0:
             raise ValueError("spread must be non-negative")
         if not 0.0 <= recovery_rate < 1.0:
             raise ValueError("recovery_rate must lie in [0, 1)")
-        self._reference_date = reference_date
-        self._periods = list(periods)
+        self._periods = periods
         self._spread = spread
         self._recovery_rate = recovery_rate
         self._zero_curve = zero_curve
         self._credit_curve = credit_curve
         self._notional = notional
         self._side = side
-
-    @classmethod
-    def from_quote(
-        cls,  # TODO: what is the difference between @classmethod and @staticmethod? when to use which? why is cls used instead of self?
-        quote: CdsQuote,
-        reference_date: date,
-        recovery_rate: float,
-        zero_curve: ZeroCurve,
-        credit_curve: CreditCurve,
-        notional: float = 1.0,
-        side: CdsSide = CdsSide.BUYER,
-    ) -> "SingleNameCDS":  # TODO: why is it in ""?
-        """Construct a CDS pricer from a ``CdsQuote`` (spread and schedule taken from the quote)."""
-        return cls(
-            reference_date=reference_date,
-            periods=quote.schedule(reference_date),
-            spread=quote.quote_value(),
-            recovery_rate=recovery_rate,
-            zero_curve=zero_curve,
-            credit_curve=credit_curve,
-            notional=notional,
-            side=side,
-        )
 
     def _df_mid(self, p: Period) -> float:
         """Return the midpoint discount factor over a period's accrual interval."""

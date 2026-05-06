@@ -124,9 +124,9 @@ class CreditCurveBootstrapper:
 
     def _quote_npv(self, quote: CdsQuote, curve: CreditCurve) -> float:
         """Return the CDS NPV under a candidate curve, with the quote's market spread."""
-        cds = SingleNameCDS.from_quote(
-            quote=quote,
-            reference_date=self._reference_date,
+        cds = SingleNameCDS(
+            schedule=quote.schedule(self._reference_date),
+            spread=quote.quote_value(),
             recovery_rate=self._recovery_rate,
             zero_curve=self._zero_curve,
             credit_curve=curve,

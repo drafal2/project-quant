@@ -83,8 +83,8 @@ class CdsQuote:
         """Return the market CDS spread in decimal."""
         return self._spread
 
-    def schedule(self, reference_date: date) -> list:
-        """Return the list of accrual periods for the CDS premium leg."""
+    def schedule(self, reference_date: date) -> Schedule:
+        """Return the premium-leg ``Schedule`` for this quote rooted at ``reference_date``."""
         return Schedule(
             effective_date=self._spot(reference_date),
             termination_date=self.maturity_date(reference_date),
@@ -94,7 +94,7 @@ class CdsQuote:
             calendar=self._cal,
             stub_type=self._stub_type,
             payment_lag=self._payment_lag,
-        ).generate()
+        )
 
     def bumped(self, delta: float) -> "CdsQuote":
         """Return a new ``CdsQuote`` with the spread shifted by ``delta``."""

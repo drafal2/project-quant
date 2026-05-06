@@ -65,7 +65,13 @@ def zero_curve():
 
 def _round_trip_residuals(curve, zero_curve, quotes):
     return [
-        SingleNameCDS.from_quote(q, REF, RECOVERY, zero_curve, curve).npv()
+        SingleNameCDS(
+            schedule=q.schedule(REF),
+            spread=q.quote_value(),
+            recovery_rate=RECOVERY,
+            zero_curve=zero_curve,
+            credit_curve=curve,
+        ).npv()
         for q in quotes
     ]
 
