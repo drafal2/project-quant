@@ -13,6 +13,11 @@ from schedules.schedule import Frequency, Schedule
 from .curve import ZeroCurve
 
 
+def _resolve_calendar(calendar: CalendarType | HolidayCalendar) -> HolidayCalendar:
+    """Return a HolidayCalendar, constructing one from a CalendarType if necessary."""
+    return calendar if isinstance(calendar, HolidayCalendar) else HolidayCalendar(calendar)
+
+
 class MaturityReference(Enum):
     """Determines which date is treated as the instrument maturity (bootstrapping pillar).
 
@@ -59,7 +64,7 @@ class DepositQuote(MarketQuote):
         rate: float,
         tenor: str,
         spot_lag: int,
-        calendar: CalendarType,
+        calendar: CalendarType | HolidayCalendar,
         business_day_convention: BusinessDayConvention,
         day_count_convention: DayCountConvention,
     ) -> None:
@@ -67,18 +72,16 @@ class DepositQuote(MarketQuote):
         self.rate = rate
         self.tenor = tenor
         self.spot_lag = spot_lag
-        self.calendar = calendar
+        self._cal = _resolve_calendar(calendar)
         self.bdc = business_day_convention
         self.dcc = day_count_convention
 
     def _spot(self, reference_date: date) -> date:
-        cal = HolidayCalendar(self.calendar)
-        return add_spot_lag(reference_date, self.spot_lag, cal)
+        return add_spot_lag(reference_date, self.spot_lag, self._cal)
 
     def maturity_date(self, reference_date: date) -> date:
         """Return the deposit maturity date (spot + tenor, BDC-adjusted)."""
-        cal = HolidayCalendar(self.calendar)
-        return add_tenor(self._spot(reference_date), self.tenor, cal, self.bdc)
+        return add_tenor(self._spot(reference_date), self.tenor, self._cal, self.bdc)
 
     def start_date(self, reference_date: date) -> date:
         """Return the deposit start date (spot date)."""
@@ -108,7 +111,7 @@ class FuturesQuote(MarketQuote):
         price: float,
         imm_code: str,
         tenor: str,
-        calendar: CalendarType,
+        calendar: CalendarType | HolidayCalendar,
         business_day_convention: BusinessDayConvention,
         day_count_convention: DayCountConvention,
         convexity_adjustment: float = 0.0,
@@ -117,7 +120,7 @@ class FuturesQuote(MarketQuote):
         self.price = price
         self.imm_code = imm_code
         self.tenor = tenor
-        self.calendar = calendar
+        self._cal = _resolve_calendar(calendar)
         self.bdc = business_day_convention
         self.dcc = day_count_convention
         self.convexity_adjustment = convexity_adjustment
@@ -127,8 +130,7 @@ class FuturesQuote(MarketQuote):
 
     def maturity_date(self, reference_date: date) -> date:
         """Return the contract end date (IMM start + tenor, BDC-adjusted)."""
-        cal = HolidayCalendar(self.calendar)
-        return add_tenor(self._start(), self.tenor, cal, self.bdc)
+        return add_tenor(self._start(), self.tenor, self._cal, self.bdc)
 
     def start_date(self, reference_date: date) -> date:
         """Return the IMM contract start date (3rd Wednesday of the contract month)."""
@@ -160,7 +162,7 @@ class OISQuote(MarketQuote):
         tenor: str,
         spot_lag: int,
         frequency: Frequency,
-        calendar: CalendarType,
+        calendar: CalendarType | HolidayCalendar,
         business_day_convention: BusinessDayConvention,
         day_count_convention: DayCountConvention,
         stub_type: StubType = StubType.SHORT_BACK,
@@ -172,7 +174,7 @@ class OISQuote(MarketQuote):
         self.tenor = tenor
         self.spot_lag = spot_lag
         self.frequency = frequency
-        self.calendar = calendar
+        self._cal = _resolve_calendar(calendar)
         self.bdc = business_day_convention
         self.dcc = day_count_convention
         self.stub_type = stub_type
@@ -180,8 +182,7 @@ class OISQuote(MarketQuote):
         self.maturity_reference = maturity_reference
 
     def _spot(self, reference_date: date) -> date:
-        cal = HolidayCalendar(self.calendar)
-        return add_spot_lag(reference_date, self.spot_lag, cal)
+        return add_spot_lag(reference_date, self.spot_lag, self._cal)
 
     def maturity_date(self, reference_date: date) -> date:
         """Return the maturity date used as the bootstrapping pillar.
@@ -190,10 +191,9 @@ class OISQuote(MarketQuote):
         With MaturityReference.PAYMENT_DATE it is the accrual end advanced by payment_lag
         business days — placing the pillar at the last actual cash flow date.
         """
-        cal = HolidayCalendar(self.calendar)
-        accrual_end = add_tenor(self._spot(reference_date), self.tenor, cal, self.bdc)
+        accrual_end = add_tenor(self._spot(reference_date), self.tenor, self._cal, self.bdc)
         if self.maturity_reference is MaturityReference.PAYMENT_DATE:
-            return cal.add_business_days(accrual_end, self.payment_lag)
+            return self._cal.add_business_days(accrual_end, self.payment_lag)
         return accrual_end
 
     def start_date(self, reference_date: date) -> date:
@@ -223,7 +223,7 @@ class OISQuote(MarketQuote):
             frequency=self.frequency,
             day_count_convention=self.dcc,
             business_day_convention=self.bdc,
-            calendar=self.calendar,
+            calendar=self._cal,
             stub_type=self.stub_type,
             payment_lag=self.payment_lag,
         ).generate()
@@ -244,7 +244,7 @@ class SwapQuote(MarketQuote):
         fixed_day_count: DayCountConvention,
         floating_frequency: Frequency,
         floating_day_count: DayCountConvention,
-        calendar: CalendarType,
+        calendar: CalendarType | HolidayCalendar,
         business_day_convention: BusinessDayConvention,
         discount_curve: ZeroCurve,
         stub_type: StubType = StubType.SHORT_BACK,
@@ -259,7 +259,7 @@ class SwapQuote(MarketQuote):
         self.fixed_day_count = fixed_day_count
         self.floating_frequency = floating_frequency
         self.floating_day_count = floating_day_count
-        self.calendar = calendar
+        self._cal = _resolve_calendar(calendar)
         self.bdc = business_day_convention
         self.discount_curve = discount_curve
         self.stub_type = stub_type
@@ -267,8 +267,7 @@ class SwapQuote(MarketQuote):
         self.maturity_reference = maturity_reference
 
     def _spot(self, reference_date: date) -> date:
-        cal = HolidayCalendar(self.calendar)
-        return add_spot_lag(reference_date, self.spot_lag, cal)
+        return add_spot_lag(reference_date, self.spot_lag, self._cal)
 
     def maturity_date(self, reference_date: date) -> date:
         """Return the maturity date used as the bootstrapping pillar.
@@ -277,10 +276,9 @@ class SwapQuote(MarketQuote):
         With MaturityReference.PAYMENT_DATE it is the accrual end advanced by payment_lag
         business days — placing the pillar at the last actual cash flow date.
         """
-        cal = HolidayCalendar(self.calendar)
-        accrual_end = add_tenor(self._spot(reference_date), self.tenor, cal, self.bdc)
+        accrual_end = add_tenor(self._spot(reference_date), self.tenor, self._cal, self.bdc)
         if self.maturity_reference is MaturityReference.PAYMENT_DATE:
-            return cal.add_business_days(accrual_end, self.payment_lag)
+            return self._cal.add_business_days(accrual_end, self.payment_lag)
         return accrual_end
 
     def start_date(self, reference_date: date) -> date:
@@ -312,7 +310,7 @@ class SwapQuote(MarketQuote):
             frequency=self.fixed_frequency,
             day_count_convention=self.fixed_day_count,
             business_day_convention=self.bdc,
-            calendar=self.calendar,
+            calendar=self._cal,
             stub_type=self.stub_type,
             payment_lag=self.payment_lag,
         ).generate()
@@ -323,7 +321,7 @@ class SwapQuote(MarketQuote):
             frequency=self.floating_frequency,
             day_count_convention=self.floating_day_count,
             business_day_convention=self.bdc,
-            calendar=self.calendar,
+            calendar=self._cal,
             stub_type=self.stub_type,
             payment_lag=self.payment_lag,
         ).generate()
