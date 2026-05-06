@@ -41,7 +41,7 @@ def _is_last_day_of_month(d: date) -> bool:
     return d.day == _days_in_month(d.year, d.month)
 
 
-class Schedule:  # TODO: you need to be able to generate a schedule from start_date, not just from effective and termination dates. for example, for cds bootstrapping you need to generate a schedule for each pillar from the quote's start_date and maturity_date. maybe you can add an alternate constructor that takes start_date and end_date instead of effective and termination dates?
+class Schedule:
     """Generates accrual schedules for fixed income instruments."""
 
     def __init__(
