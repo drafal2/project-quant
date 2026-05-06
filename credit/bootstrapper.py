@@ -130,6 +130,7 @@ class CreditCurveBootstrapper:
             recovery_rate=self._recovery_rate,
             zero_curve=self._zero_curve,
             credit_curve=curve,
+            pricing_date=self._reference_date,
         )
         return cds.npv()
 

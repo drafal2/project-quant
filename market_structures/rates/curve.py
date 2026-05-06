@@ -51,6 +51,11 @@ class ZeroCurve:
         self._times = [self._t(d) for d in self._pillar_dates]
         self._dfs = [self._rate_to_df(r, t) for r, t in zip(self._rates, self._times)]
 
+    @property
+    def reference_date(self) -> date:
+        """Return the curve reference date."""
+        return self._reference_date
+
     def _t(self, d: date) -> float:
         """Return the day count fraction from the reference date to d."""
         return day_count_fraction(self._reference_date, d, self._dcc)

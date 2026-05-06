@@ -71,6 +71,7 @@ def _round_trip_residuals(curve, zero_curve, quotes):
             recovery_rate=RECOVERY,
             zero_curve=zero_curve,
             credit_curve=curve,
+            pricing_date=REF,
         ).npv()
         for q in quotes
     ]
