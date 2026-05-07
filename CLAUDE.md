@@ -72,6 +72,70 @@ git branch -vv | grep "gone" | ForEach-Object { ($_ -split '\s+')[1] } | ForEach
 - **Docs freshness** — the `/pre-pr` skill checks whether the root `CLAUDE.md`, the relevant per-package `CLAUDE.md`, and `README.md` need updating before opening a PR. Keep doc updates in the same PR as the code change.
 - **Subagent model selection** — when delegating to a subagent, pick the model deliberately. Use **Haiku** for mechanical work (file search, symbol lookup, cross-package sweeps, mass mechanical edits) — cost win, no cache penalty. Use **Opus** for the `Plan` subagent and other delegated reasoning tasks **when the goal is to keep the parent context clean** (e.g. parent is already heavy, or reasoning would pull in many large files). Plan inline by default — only delegate planning when context isolation is the actual reason. Default to the parent's model otherwise.
 
+## Logging
+
+Library code is configuration-free: every module declares its own logger and installs no handlers. Output is configured at the entry point (notebook, script, or test) by calling `setup_logging()` from the top-level `logging_config.py`, which loads `logging.yaml` via `logging.config.dictConfig`.
+
+### Adding a new module (any package)
+
+Two lines at the top, alongside the other imports:
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+```
+
+Then use `logger.info(...)`, `logger.debug(...)`, etc. throughout. Never call `logging.basicConfig()`, never attach handlers, never read `logging.yaml` from inside library code.
+
+### Adding a new package
+
+When you create a new top-level package (e.g. `vol/`), three places need updating in the same PR:
+
+1. **`<package>/__init__.py`** — install a `NullHandler` so the package's logger never emits a "no handler" warning when imported with no logging configured:
+   ```python
+   import logging
+
+   logging.getLogger(__name__).addHandler(logging.NullHandler())
+   ```
+2. **`logging.yaml`** — add a logger entry under `loggers:` matching the package name, level `INFO`, attaching the `console` handler, `propagate: false`. Copy any existing entry (e.g. `credit:`) as the template.
+3. **`logging_config.py`** — append the package name to the `_PACKAGE_LOGGERS` tuple so the `setup_logging(level=...)` override applies to it.
+
+If any of those three steps is missed, logs from the new package will either be silent (missing yaml entry) or unaffected by the `level=` override (missing tuple entry).
+
+### Level conventions
+
+| Level | When to use |
+|---|---|
+| `DEBUG` | Per-iteration / per-step traces inside hot loops (Newton-Raphson, bisection, schedule period generation). Always guard with `if logger.isEnabledFor(logging.DEBUG):` so disabled logging costs one attribute lookup. |
+| `INFO` | Lifecycle summaries: entry/exit of long-running operations, solver convergence (`"converged in N iterations"`), bootstrap pillar counts, DB seeding completion. One INFO line per logical operation, not per data point. |
+| `WARNING` | Degraded but recoverable conditions: solver hit max iterations but produced a usable answer, fallback path taken, deprecated input shape accepted. |
+| `ERROR` | Failure paths immediately before raising an exception. The exception message carries the human-readable detail; the log line carries structured fields useful for log aggregators. |
+
+### Performance rule
+
+Use `%`-style lazy formatting in log calls: `logger.info("x=%d y=%.4f", x, y)`, **not** f-strings. Lazy formatting is skipped entirely when the level is disabled. For DEBUG inside hot loops, additionally guard with `isEnabledFor`:
+
+```python
+if logger.isEnabledFor(logging.DEBUG):
+    logger.debug("NR iter=%d x=%.10f f(x)=%.3e", iteration, x, fx)
+```
+
+This guard pattern is mandatory in any solver that may iterate more than ~10 times per call.
+
+### Channel split: `warnings.warn` vs `logger`
+
+- **`warnings.warn(..., UserWarning)`** — user-facing data-quality signals the caller might want to suppress with `warnings.filterwarnings`. Example: `QuoteHierarchy` discarding a lower-priority quote on a maturity-date collision (`market_structures/rates/bootstrapper.py`).
+- **`logger.warning(...)`** — operational/diagnostic concerns the caller does not need to suppress per-call. Example: bisection hit max iterations.
+
+If unsure: would the user want to silence this with `filterwarnings` for a specific test or call? If yes, `warnings`. Otherwise `logger`.
+
+### Enabling output
+
+- **Notebook** — `setup_demo_env()` (in `examples/_setup.py`) calls `setup_logging()` automatically. To see per-iteration DEBUG traces, follow it with `setup_logging(level="DEBUG")`.
+- **Script** — call `setup_logging()` at the top of the `if __name__ == "__main__":` block. See `scripts/initialise.py` for the pattern.
+- **Tests** — never call `setup_logging()`; rely on pytest's `caplog` fixture, which attaches a handler dynamically. Use `caplog.at_level(logging.DEBUG, logger="<package>.<module>")` to capture records.
+
 ## Architecture
 
 A Python quantitative finance toolkit. Each domain lives in its own library package; the shared SQLite database (`quant.db`) holds reference data for all domains. `examples/` contains Jupyter notebooks that document each package.
@@ -93,4 +157,5 @@ These rules touch multiple packages and must be honoured even when only one pack
 
 - **New `MarketQuote` subclass** — must be added to `QuoteHierarchy._RANK` in `market_structures/rates/bootstrapper.py`, otherwise the bootstrapper cannot resolve maturity-date collisions involving the new type.
 - **New domain table** — define `create_<name>_table(conn)` in `database/<name>.py` and append it to `_TABLE_CREATORS` in `scripts/initialise.py`.
+- **New top-level package** — install `NullHandler` in `<package>/__init__.py`, add a logger entry to `logging.yaml`, and append the package name to `_PACKAGE_LOGGERS` in `logging_config.py`. See the [Logging](#logging) section.
 - **Test isolation** — every test must run against the temp DB provided by the `seeded_test_db` autouse fixture in `tests/conftest.py`; never touch `quant.db` directly.

@@ -11,3 +11,7 @@ Prices single-name Credit Default Swaps using a bootstrapped survival curve.
 ## Numerical conventions
 
 Protection and accrued-premium integrals use the midpoint discount factor approximation: `df_avg * (Q_s − Q_e)`, which correctly vanishes at zero hazard rate.
+
+## Logging convention
+
+`survival_curve.py` uses `logger = logging.getLogger(__name__)` and follows the project-wide pattern: INFO summary on entry/exit of `from_cds_spreads()` and once per pillar bisection (converged-in-N or WARNING on hitting the 100-iteration cap), plus DEBUG per-iteration traces guarded by `logger.isEnabledFor(logging.DEBUG)`. Any new solver added under `credit/` should follow this same shape.

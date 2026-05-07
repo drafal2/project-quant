@@ -1,5 +1,9 @@
 """Market structure objects: curves, interpolators, and bootstrapping."""
 
+import logging
+
+logging.getLogger(__name__).addHandler(logging.NullHandler())
+
 from .rates import (
     ZeroCurve,
     MarketQuote,

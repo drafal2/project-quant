@@ -12,3 +12,7 @@ Objects for representing market data: yield curves, market quotes, bootstrappers
 ## Invariants
 
 - Every new `MarketQuote` subclass must be added to `QuoteHierarchy._RANK` in `bootstrapper.py`, otherwise maturity-date collisions involving the new type cannot be resolved at bootstrap time.
+
+## Logging convention
+
+`bootstrapper.py` uses `logger = logging.getLogger(__name__)` and follows the project-wide pattern: INFO summaries on entry/exit of `bootstrap()` and once per Newton-Raphson call (converged-in-N or non-convergence ERROR before raising), plus DEBUG per-iteration traces guarded by `logger.isEnabledFor(logging.DEBUG)`. Any new solver added under `market_structures/` should follow this same INFO-summary + guarded-DEBUG-per-iteration shape.

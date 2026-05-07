@@ -1,5 +1,6 @@
 """Sequential zero-coupon curve bootstrapper using Newton-Raphson."""
 
+import logging
 import warnings
 from collections.abc import Callable
 from datetime import date
@@ -10,6 +11,8 @@ from market_structures.interpolation.interpolators import Interpolator
 
 from .curve import ZeroCurve
 from .quotes import DepositQuote, FuturesQuote, MarketQuote, OISQuote, SwapQuote
+
+logger = logging.getLogger(__name__)
 
 
 # NOTE: every new MarketQuote subclass must be added to _RANK below.
@@ -145,6 +148,11 @@ class ZeroCurveBootstrapper:
         RuntimeError
             If Newton-Raphson fails to converge for any pillar.
         """
+        logger.info(
+            "Bootstrapping zero curve from %d quote(s), reference_date=%s",
+            len(self._quotes),
+            self._reference_date,
+        )
         sorted_quotes = sorted(self._quotes, key=lambda q: q.maturity_date(self._reference_date))
 
         resolved: dict[date, MarketQuote] = {}
@@ -183,6 +191,12 @@ class ZeroCurveBootstrapper:
             known_dates.append(mat)
             known_rates.append(r)
 
+        logger.info(
+            "Bootstrap complete: %d pillar(s) calibrated (first=%s, last=%s)",
+            len(known_dates),
+            known_dates[0] if known_dates else None,
+            known_dates[-1] if known_dates else None,
+        )
         return ZeroCurve(
             reference_date=self._reference_date,
             pillar_dates=known_dates,
@@ -223,16 +237,34 @@ class ZeroCurveBootstrapper:
         x = x0
         for iteration in range(self._max_iterations):
             fx = f(x)
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("NR iter=%d x=%.10f f(x)=%.3e", iteration, x, fx)
             if abs(fx) < self._tolerance:
+                logger.info(
+                    "NR converged in %d iteration(s), |f(x)|=%.3e",
+                    iteration + 1,
+                    abs(fx),
+                )
                 return x
             f_bump = f(x + _BUMP)
             deriv = (f_bump - fx) / _BUMP
             if deriv == 0.0:
+                logger.error(
+                    "NR zero-derivative at x=%.10f after %d iteration(s)",
+                    x,
+                    iteration,
+                )
                 raise RuntimeError(
                     f"Newton-Raphson failed: zero derivative at x={x} "
                     f"after {iteration} iterations."
                 )
             x = x - fx / deriv
+        logger.error(
+            "NR failed to converge in %d iteration(s); last x=%.10f, f(x)=%.3e",
+            self._max_iterations,
+            x,
+            f(x),
+        )
         raise RuntimeError(
             f"Newton-Raphson did not converge after {self._max_iterations} iterations. "
             f"Last x={x:.8f}, f(x)={f(x):.2e}, tolerance={self._tolerance:.2e}."

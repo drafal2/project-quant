@@ -1,5 +1,6 @@
 """Survival curve with piecewise-constant hazard rates and bootstrap from CDS spread quotes."""
 
+import logging
 import math
 from bisect import bisect_left
 from datetime import date
@@ -8,6 +9,8 @@ from market_conventions import DayCountConvention
 from schedules.day_count import day_count_fraction
 
 from .quotes import CdsQuote
+
+logger = logging.getLogger(__name__)
 
 
 def _par_spread_from_schedule(periods, discount_curve, survival_curve, recovery_rate):
@@ -170,6 +173,12 @@ class SurvivalCurve:
         hazard rates using bisection per pillar so that the implied par spread matches
         each quote's market spread. recovery_rate is applied uniformly across all pillars.
         """
+        logger.info(
+            "Bootstrapping survival curve from %d CDS quote(s), reference_date=%s, recovery_rate=%.4f",
+            len(quotes),
+            reference_date,
+            recovery_rate,
+        )
         sorted_quotes = sorted(quotes, key=lambda q: q.maturity_date(reference_date))
         pillar_dates = [q.maturity_date(reference_date) for q in sorted_quotes]
 
@@ -205,10 +214,20 @@ class SurvivalCurve:
                 )
 
             mid = lo
-            for _ in range(100):
+            converged_at: int | None = None
+            for it in range(100):
                 mid = (lo + hi) / 2.0
                 f_mid = objective(mid)
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(
+                        "Bisection pillar=%d iter=%d lam=%.10f f_mid=%.3e",
+                        i,
+                        it,
+                        mid,
+                        f_mid,
+                    )
                 if abs(f_mid) < 1e-10:
+                    converged_at = it + 1
                     break
                 if f_lo * f_mid < 0:
                     hi = mid
@@ -216,8 +235,29 @@ class SurvivalCurve:
                     lo = mid
                     f_lo = f_mid
 
+            if converged_at is not None:
+                logger.info(
+                    "Bisection pillar=%d converged in %d iteration(s), lam=%.10f",
+                    i,
+                    converged_at,
+                    mid,
+                )
+            else:
+                logger.warning(
+                    "Bisection pillar=%d hit max iterations (100), |f|=%.3e, lam=%.10f",
+                    i,
+                    abs(f_mid),
+                    mid,
+                )
+
             known_rates.append(mid)
 
         curve = cls(reference_date, pillar_dates, known_rates, curve_day_count_convention)
         curve._bootstrap_meta = bootstrap_meta
+        logger.info(
+            "Survival curve bootstrap complete: %d pillar(s) calibrated (first=%s, last=%s)",
+            len(pillar_dates),
+            pillar_dates[0] if pillar_dates else None,
+            pillar_dates[-1] if pillar_dates else None,
+        )
         return curve
