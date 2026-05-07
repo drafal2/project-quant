@@ -59,6 +59,12 @@ git fetch --prune
 git branch -vv | grep "gone" | ForEach-Object { ($_ -split '\s+')[1] } | ForEach-Object { git branch -d $_ }
 ```
 
+## Working Conventions
+
+- **Docstrings** — NumPy-style with vertical signatures (one parameter per line for 2+ params beyond `self`); with type annotations present, do not repeat types in the `Parameters` section. Run `/docstring-audit` on all modified files before opening a PR.
+- **Notebooks** — clear all cell outputs before committing; `nbstripout` git hook is configured to enforce this.
+- **Post-merge** — after merging to master, always check whether `CLAUDE.md` and `README.md` need updating to reflect the changes.
+
 ## Architecture
 
 A Python quantitative finance toolkit. Each domain lives in its own library package; the shared SQLite database (`quant.db`) holds reference data for all domains. `examples/` contains Jupyter notebooks that document each package.
