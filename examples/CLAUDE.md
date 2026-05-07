@@ -11,6 +11,8 @@ Each notebook:
 
 When committing, **clear all cell outputs first**; the `nbstripout` git hook is configured to enforce this.
 
+When inspecting a notebook, never `Read` the whole `.ipynb` — the JSON serialisation is large and most of it is structural noise. Use `NotebookEdit` to modify cells, or `Read` a targeted line range for a single cell.
+
 ## Current notebooks
 
 - `01_schedule_generation.ipynb` — `schedules/`

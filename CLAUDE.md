@@ -65,6 +65,7 @@ git branch -vv | grep "gone" | ForEach-Object { ($_ -split '\s+')[1] } | ForEach
 - **Notebooks** — clear all cell outputs before committing; `nbstripout` git hook is configured to enforce this.
 - **Per-package guidance** — each package directory has its own `CLAUDE.md` with module-level details. Read it when working in that subtree.
 - **Docs freshness** — the `/pre-pr` skill checks whether the root `CLAUDE.md`, the relevant per-package `CLAUDE.md`, and `README.md` need updating before opening a PR. Keep doc updates in the same PR as the code change.
+- **Subagent model selection** — when delegating to a subagent, pick the model deliberately. Use **Haiku** for mechanical work (file search, symbol lookup, cross-package sweeps, mass mechanical edits) — cost win, no cache penalty. Use **Opus** for the `Plan` subagent and other delegated reasoning tasks **when the goal is to keep the parent context clean** (e.g. parent is already heavy, or reasoning would pull in many large files). Plan inline by default — only delegate planning when context isolation is the actual reason. Default to the parent's model otherwise.
 
 ## Architecture
 

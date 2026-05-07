@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Replaced the `Post-merge` working convention with a `Docs freshness` convention pointing to the `/pre-pr` check, since the redundant post-merge docs review was already covered pre-PR
 - Added `scripts/holiday_generators.py` to package documentation (previously unmentioned)
 
+### Added
+- `Subagent model selection` working convention in root `CLAUDE.md` — Haiku for mechanical delegation, Opus for the `Plan` subagent when context isolation is the reason to delegate
+- Notebook reading rule in `examples/CLAUDE.md` — avoid `Read` on whole `.ipynb` files; use `NotebookEdit` or targeted cell ranges
+
 ## [0.5.1] - 2026-05-07
 
 ### Changed
