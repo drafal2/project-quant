@@ -4,17 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Always use `.venv\Scripts\python` instead of `python` to ensure the venv interpreter is used.
+Always use `.venv/Scripts/python` instead of `python` to ensure the venv interpreter is used.
 
 ```bash
 # Run all tests
-.venv\Scripts\python -m pytest tests/ -q
+.venv/Scripts/python -m pytest tests/ -q
 
 # Run a single test file
-.venv\Scripts\python -m pytest tests/test_schedule.py -q
+.venv/Scripts/python -m pytest tests/test_schedule.py -q
 
 # Run a single test by name
-.venv\Scripts\python -m pytest tests/test_schedule.py::test_function_name -q
+.venv/Scripts/python -m pytest tests/test_schedule.py::test_function_name -q
 ```
 
 ## Git
