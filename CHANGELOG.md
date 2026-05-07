@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-05-07
+
+### Changed
+- Split `CLAUDE.md` into a slim root file (commands, git, versioning, working conventions, package map, cross-package invariants) plus per-package `CLAUDE.md` files (`database/`, `scripts/`, `market_conventions/`, `market_structures/`, `schedules/`, `credit/`, `tests/`, `examples/`) so module-level guidance is loaded only when working in the relevant subtree
+- Replaced the `Post-merge` working convention with a `Docs freshness` convention pointing to the `/pre-pr` check, since the redundant post-merge docs review was already covered pre-PR
+- Added `scripts/holiday_generators.py` to package documentation (previously unmentioned)
+
+### Fixed
+- Backslash paths (`.venv\Scripts\python`) in root `CLAUDE.md` `bash`-fenced examples — replaced with forward slashes so the commands work in both PowerShell and Bash on Windows
+
+### Added
+- `Subagent model selection` working convention in root `CLAUDE.md` — Haiku for mechanical delegation, Opus for the `Plan` subagent when context isolation is the reason to delegate
+- Notebook reading rule in `examples/CLAUDE.md` — avoid `Read` on whole `.ipynb` files; use `NotebookEdit` or targeted cell ranges
+- `perf`, `test`, and `revert` rows to the commit type table; escape-hatch rule allowing new types to be proposed and added in the same PR when no existing type fits
+- `examples/_setup.py` with `setup_demo_env()` helper — single entry point for sys.path, DB redirect, and idempotent holiday seeding
+- `examples/_template.ipynb` skeleton notebook — copy-and-edit starting point for new notebooks; documents the setup helper for the human reader
+- `examples/__init__.py` so `examples` is importable as a package once the project root is on `sys.path`
+- Workflow rule in `examples/CLAUDE.md` — copy `_template.ipynb` and edit via `NotebookEdit`; do not derive structure from existing notebooks
+
 ## [0.5.1] - 2026-05-07
 
 ### Changed
