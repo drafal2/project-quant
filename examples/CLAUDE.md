@@ -4,10 +4,9 @@ Jupyter notebooks demonstrating each library package.
 
 ## Conventions
 
-Each notebook:
-- adds the project root to `sys.path` so the local packages are importable without installation
-- redirects the DB to `examples/demo.db` via `set_db_path()` (never touches `quant.db`)
-- seeds `demo.db` on first run (idempotent — skips if data already present)
+Each notebook calls `setup_demo_env()` from `examples/_setup.py` as its first code cell. The helper adds the project root to `sys.path`, redirects the DB to `examples/demo.db` via `set_db_path()`, and seeds the holidays table on first run (idempotent). The production `quant.db` is never touched.
+
+When creating a new notebook, copy `_template.ipynb` to its target name and edit cells via `NotebookEdit`. Do not derive structure or boilerplate from existing notebooks — the template is the single source of truth for layout and setup.
 
 When committing, **clear all cell outputs first**; the `nbstripout` git hook is configured to enforce this.
 
