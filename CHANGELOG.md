@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 - `Subagent model selection` working convention in root `CLAUDE.md` — Haiku for mechanical delegation, Opus for the `Plan` subagent when context isolation is the reason to delegate
 - Notebook reading rule in `examples/CLAUDE.md` — avoid `Read` on whole `.ipynb` files; use `NotebookEdit` or targeted cell ranges
+- `perf`, `test`, and `revert` rows to the commit type table; escape-hatch rule allowing new types to be proposed and added in the same PR when no existing type fits
 
 ## [0.5.1] - 2026-05-07
 

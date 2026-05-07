@@ -36,8 +36,13 @@ Commit messages must use the format `<type>: <description>`:
 | `feature` | New feature |
 | `fix` | Bug fix |
 | `refactor` | Code reorganisation without behaviour change |
+| `perf` | Performance optimisation (behaviour-preserving but measurably faster) |
+| `test` | Test-only change with no production behaviour impact |
 | `docs` | Documentation only |
-| `config` | Repo configuration |
+| `config` | Repo configuration (build, CI, tooling, dependencies) |
+| `revert` | Reverting a prior commit |
+
+If a change doesn't fit any of the above, propose a new type with reasoning and ask before using it. On approval, add the new row to this table in the same commit/PR — the table is the single source of truth.
 
 ## Versioning and Changelog
 
