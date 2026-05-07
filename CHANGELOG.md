@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- Added `Working Conventions` section to `CLAUDE.md` documenting docstring style, notebook output policy, and post-merge docs review requirement
+
 ## [0.5.0] - 2026-05-07
 
 ### Changed
