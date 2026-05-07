@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-05-07
+
 ### Changed
 - Split `CLAUDE.md` into a slim root file (commands, git, versioning, working conventions, package map, cross-package invariants) plus per-package `CLAUDE.md` files (`database/`, `scripts/`, `market_conventions/`, `market_structures/`, `schedules/`, `credit/`, `tests/`, `examples/`) so module-level guidance is loaded only when working in the relevant subtree
 - Replaced the `Post-merge` working convention with a `Docs freshness` convention pointing to the `/pre-pr` check, since the redundant post-merge docs review was already covered pre-PR
