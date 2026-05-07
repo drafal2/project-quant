@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- Logging infrastructure: per-module `getLogger(__name__)`, `NullHandler` on every package `__init__`, and YAML-driven `dictConfig` (`logging.yaml`) loaded via `logging_config.setup_logging(level=...)`. INFO-level lifecycle summaries plus DEBUG per-iteration traces (guarded by `isEnabledFor`) on the rate Newton-Raphson and CDS bisection bootstrappers
+- `PyYAML>=6.0` runtime dependency for the YAML logging config
+- `tests/test_logging.py` — caplog-based assertions for bootstrapper INFO/DEBUG records and a `setup_logging()` smoke test
+
+### Changed
+- `examples/_setup.py` and `scripts/initialise.py` replace `print()` status messages with `logger.info(...)` and call `setup_logging()` so notebook and CLI output flows through the configured handler
+- The existing quote-collision `warnings.warn` in `ZeroCurveBootstrapper.bootstrap()` is unchanged — `warnings` remains the user-facing data-quality channel; `logger` covers operational/diagnostic concerns
+
 ## [0.5.3] - 2026-05-07
 
 ### Refactored

@@ -1,10 +1,13 @@
 """Database initialisation and holiday seeding entry point."""
 
+import logging
 import sqlite3
 
 from database.connection import get_db_path
 from database.holidays import create_holidays_table
 from scripts.holiday_generators import _eur_holidays, _gbp_holidays, _pln_holidays, _usd_holidays
+
+logger = logging.getLogger(__name__)
 
 # Register a create_<name>_table(conn) function here for each new feature.
 _TABLE_CREATORS = [
@@ -55,7 +58,10 @@ def _seed_holidays(
 
 
 if __name__ == "__main__":
+    from logging_config import setup_logging
+    setup_logging()
+
     init_db()
     with sqlite3.connect(get_db_path()) as conn:
         _seed_holidays(conn)
-    print(f"Initialised quant.db with data for {YEAR_FROM}–{YEAR_TO}.")
+    logger.info("Initialised quant.db with data for %d-%d.", YEAR_FROM, YEAR_TO)

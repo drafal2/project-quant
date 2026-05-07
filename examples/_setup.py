@@ -9,9 +9,12 @@ The helper deliberately operates on a sandbox database (``examples/demo.db``)
 so notebook experiments cannot read or write the production ``quant.db``.
 """
 
+import logging
 import sqlite3
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def setup_demo_env() -> None:
@@ -31,12 +34,16 @@ def setup_demo_env() -> None:
        table (USD/EUR/GBP/PLN, years 2000-2100) **only if it is empty**.
        Re-running the cell is therefore idempotent.
 
-    A one-line status message is printed so the notebook reader can see
-    whether seeding ran or the existing demo database was reused.
+    Logging is configured via :func:`logging_config.setup_logging` (YAML
+    ``dictConfig``) so the notebook reader sees status and bootstrap
+    progress on stderr at INFO level.
     """
     project_root = Path(__file__).resolve().parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
+
+    from logging_config import setup_logging
+    setup_logging()
 
     from database.connection import get_db_path, set_db_path
     from scripts.initialise import _seed_holidays, init_db
@@ -49,6 +56,10 @@ def setup_demo_env() -> None:
         (count,) = conn.execute("SELECT COUNT(*) FROM holidays").fetchone()
         if count == 0:
             _seed_holidays(conn)
-            print(f"Initialised demo DB at {demo_db} (seeded 2000-2100 holidays).")
+            logger.info("Initialised demo DB at %s (seeded 2000-2100 holidays).", demo_db)
         else:
-            print(f"Using existing demo DB at {demo_db} ({count} holiday rows already present).")
+            logger.info(
+                "Using existing demo DB at %s (%d holiday rows already present).",
+                demo_db,
+                count,
+            )

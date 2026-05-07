@@ -4,7 +4,7 @@ Jupyter notebooks demonstrating each library package.
 
 ## Conventions
 
-Each notebook calls `setup_demo_env()` from `examples/_setup.py` as its first code cell. The helper adds the project root to `sys.path`, redirects the DB to `examples/demo.db` via `set_db_path()`, and seeds the holidays table on first run (idempotent). The production `quant.db` is never touched.
+Each notebook calls `setup_demo_env()` from `examples/_setup.py` as its first code cell. The helper adds the project root to `sys.path`, calls `setup_logging()` from `logging_config` (loads `logging.yaml`, INFO to stderr), redirects the DB to `examples/demo.db` via `set_db_path()`, and seeds the holidays table on first run (idempotent). The production `quant.db` is never touched. To enable per-iteration solver traces in a notebook, call `setup_logging(level="DEBUG")` after `setup_demo_env()`.
 
 When creating a new notebook, copy `_template.ipynb` to its target name and edit cells via `NotebookEdit`. Do not derive structure or boilerplate from existing notebooks — the template is the single source of truth for layout and setup.
 

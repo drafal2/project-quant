@@ -1,0 +1,48 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  standard:
+    format: "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: standard
+    stream: ext://sys.stderr
+
+loggers:
+  database:
+    level: INFO
+    handlers: [console]
+    propagate: false
+  market_conventions:
+    level: INFO
+    handlers: [console]
+    propagate: false
+  market_structures:
+    level: INFO
+    handlers: [console]
+    propagate: false
+  schedules:
+    level: INFO
+    handlers: [console]
+    propagate: false
+  credit:
+    level: INFO
+    handlers: [console]
+    propagate: false
+  scripts:
+    level: INFO
+    handlers: [console]
+    propagate: false
+  examples:
+    level: INFO
+    handlers: [console]
+    propagate: false
+
+root:
+  level: WARNING
+  handlers: [console]
