@@ -5,8 +5,21 @@ from datetime import date
 from market_conventions import DayCountConvention
 
 
-def _is_leap(year: int) -> bool:
-    """Return True if the year is a leap year."""
+def _is_leap(
+    year: int,
+) -> bool:
+    """Return True if the year is a leap year.
+
+    Parameters
+    ----------
+    year
+        Calendar year to check.
+
+    Returns
+    -------
+    bool
+        True if year is a leap year, False otherwise.
+    """
     return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
 
 
@@ -15,7 +28,27 @@ def day_count_fraction(
     end: date,
     convention: DayCountConvention,
 ) -> float:
-    """Compute the day count fraction between two dates under the given convention."""
+    """Compute the day count fraction between two dates under the given convention.
+
+    Parameters
+    ----------
+    start
+        Accrual start date (inclusive).
+    end
+        Accrual end date (exclusive).
+    convention
+        Day count convention determining how the fraction is calculated.
+
+    Returns
+    -------
+    float
+        Day count fraction representing the accrual period length in years.
+
+    Raises
+    ------
+    ValueError
+        If convention is not a recognised ``DayCountConvention`` value.
+    """
     if convention == DayCountConvention.ACT_360:
         return (end - start).days / 360
 
