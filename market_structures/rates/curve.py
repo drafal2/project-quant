@@ -29,7 +29,39 @@ class ZeroCurve:
         interpolator: Interpolator | None = None,
         quotes: list[MarketQuote] | None = None,
     ) -> None:
-        """Construct a zero curve from pillar dates, rates, and compounding/interpolation settings."""
+        """Construct a zero curve from pillar dates, rates, and compounding/interpolation settings.
+
+        Parameters
+        ----------
+        reference_date
+            Anchor date (t=0) where the discount factor is 1.0.
+        pillar_dates
+            Maturity dates corresponding to each zero rate; must all be on or
+            after reference_date.
+        rates
+            Zero rates at each pillar in decimal form; interpreted under
+            compounding_type.
+        day_count_convention
+            Day count convention used to compute time fractions.
+        compounding_type
+            Compounding convention for rate and discount factor conversions.
+            Defaults to ``CompoundingType.CONTINUOUS``.
+        compounding_frequency
+            Required when compounding_type is ``COMPOUNDED``; ignored otherwise.
+        interpolator
+            Strategy used to interpolate between pillars. Defaults to
+            ``LogLinearInterpolator``.
+        quotes
+            Raw market instruments used to build this curve; populated
+            automatically by ``ZeroCurveBootstrapper``. Used by ``summary()``.
+
+        Raises
+        ------
+        ValueError
+            If pillar_dates and rates have different lengths, if no pillars are
+            provided, if any pillar is before reference_date, or if
+            compounding_frequency is missing for COMPOUNDED compounding_type.
+        """
         if len(pillar_dates) != len(rates):
             raise ValueError("pillar_dates and rates must have the same length")
         if len(pillar_dates) == 0:
@@ -56,12 +88,43 @@ class ZeroCurve:
         """Return the curve reference date."""
         return self._reference_date
 
-    def _t(self, d: date) -> float:
-        """Return the day count fraction from the reference date to d."""
+    def _t(
+        self,
+        d: date,
+    ) -> float:
+        """Return the day count fraction from the reference date to d.
+
+        Parameters
+        ----------
+        d
+            Target date.
+
+        Returns
+        -------
+        float
+            Day count fraction from reference_date to d.
+        """
         return day_count_fraction(self._reference_date, d, self._dcc)
 
-    def _rate_to_df(self, rate: float, t: float) -> float:
-        """Convert a zero rate to a discount factor at time t."""
+    def _rate_to_df(
+        self,
+        rate: float,
+        t: float,
+    ) -> float:
+        """Convert a zero rate to a discount factor at time t.
+
+        Parameters
+        ----------
+        rate
+            Zero rate in decimal form.
+        t
+            Time in years (day count fraction from reference_date).
+
+        Returns
+        -------
+        float
+            Discount factor corresponding to rate at time t.
+        """
         if self._compounding_type == CompoundingType.CONTINUOUS:
             return math.exp(-rate * t)
         if self._compounding_type == CompoundingType.SIMPLE:
@@ -69,8 +132,25 @@ class ZeroCurve:
         n = self._compounding_frequency.value
         return (1.0 + rate / n) ** (-n * t)
 
-    def _df_to_rate(self, df: float, t: float) -> float:
-        """Convert a discount factor to a zero rate at time t."""
+    def _df_to_rate(
+        self,
+        df: float,
+        t: float,
+    ) -> float:
+        """Convert a discount factor to a zero rate at time t.
+
+        Parameters
+        ----------
+        df
+            Discount factor in (0, 1].
+        t
+            Time in years (day count fraction from reference_date).
+
+        Returns
+        -------
+        float
+            Zero rate corresponding to df at time t.
+        """
         if self._compounding_type == CompoundingType.CONTINUOUS:
             return -math.log(df) / t
         if self._compounding_type == CompoundingType.SIMPLE:
@@ -78,12 +158,26 @@ class ZeroCurve:
         n = self._compounding_frequency.value
         return n * (df ** (-1.0 / (n * t)) - 1.0)
 
-    def discount_factor(self, d: date) -> float:
+    def discount_factor(
+        self,
+        d: date,
+    ) -> float:
         """Return the discount factor for the given date.
 
         For dates before the first pillar, log-linearly interpolates between
         the implicit (t=0, DF=1) anchor at reference_date and the first pillar,
         rather than flat-extrapolating.
+
+        Parameters
+        ----------
+        d
+            Target date; must be on or after reference_date.
+
+        Returns
+        -------
+        float
+            Discount factor in (0, 1] — 1.0 at reference_date, declining
+            monotonically for later dates.
         """
         if d == self._reference_date:
             return 1.0
@@ -93,15 +187,56 @@ class ZeroCurve:
             return self._dfs[0] ** (t / self._times[0])
         return self._interpolator.interpolate(t, self._times, self._dfs)
 
-    def zero_rate(self, d: date) -> float:
-        """Return the zero rate for the given date under the curve's compounding convention."""
+    def zero_rate(
+        self,
+        d: date,
+    ) -> float:
+        """Return the zero rate for the given date under the curve's compounding convention.
+
+        Parameters
+        ----------
+        d
+            Target date; must be strictly after reference_date.
+
+        Returns
+        -------
+        float
+            Zero rate in decimal form.
+
+        Raises
+        ------
+        ValueError
+            If d equals reference_date (zero rate is undefined at t=0).
+        """
         t = self._t(d)
         if t == 0.0:
             raise ValueError("zero_rate undefined at reference_date")
         return self._df_to_rate(self.discount_factor(d), t)
 
-    def forward_rate(self, start: date, end: date) -> float:
-        """Return the forward rate between two dates implied by the curve."""
+    def forward_rate(
+        self,
+        start: date,
+        end: date,
+    ) -> float:
+        """Return the forward rate between two dates implied by the curve.
+
+        Parameters
+        ----------
+        start
+            Start date of the forward period; must be strictly before end.
+        end
+            End date of the forward period.
+
+        Returns
+        -------
+        float
+            Forward zero rate in decimal form under the curve's compounding convention.
+
+        Raises
+        ------
+        ValueError
+            If start is on or after end.
+        """
         if start >= end:
             raise ValueError("start must be before end")
         df_start = self.discount_factor(start)
@@ -114,6 +249,11 @@ class ZeroCurve:
 
         Columns: instrument type, start date, maturity date, tenor, market quote,
         discount factor, and zero rate. Returns an empty string when no quotes are stored.
+
+        Returns
+        -------
+        str
+            Multi-line formatted table, or empty string if no quotes were stored.
         """
         if not self._quotes:
             return ""
@@ -136,8 +276,25 @@ class ZeroCurve:
             )
         return "\n".join(rows)
 
-    def add_pillar(self, d: date, rate: float) -> None:
-        """Add a new pillar date and rate, inserting in sorted order."""
+    def add_pillar(
+        self,
+        d: date,
+        rate: float,
+    ) -> None:
+        """Add a new pillar date and rate, inserting in sorted order.
+
+        Parameters
+        ----------
+        d
+            New pillar date; must be on or after reference_date and not already present.
+        rate
+            Zero rate at the new pillar, in decimal form.
+
+        Raises
+        ------
+        ValueError
+            If d is before reference_date or already exists in the curve.
+        """
         if d < self._reference_date:
             raise ValueError("pillar date must be on or after reference_date")
         if d in self._pillar_dates:
@@ -151,8 +308,23 @@ class ZeroCurve:
         self._times.insert(idx, t)
         self._dfs.insert(idx, df)
 
-    def remove_pillar(self, d: date) -> None:
-        """Remove a pillar date from the curve."""
+    def remove_pillar(
+        self,
+        d: date,
+    ) -> None:
+        """Remove a pillar date from the curve.
+
+        Parameters
+        ----------
+        d
+            Pillar date to remove; must exist in the curve.
+
+        Raises
+        ------
+        ValueError
+            If d is not a current pillar or removing it would leave the curve
+            with no pillars.
+        """
         if d not in self._pillar_dates:
             raise ValueError(f"pillar {d} not found")
         if len(self._pillar_dates) == 1:

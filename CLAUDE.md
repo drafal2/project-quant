@@ -4,17 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Always use `.venv\Scripts\python` instead of `python` to ensure the venv interpreter is used.
+Always use `.venv/Scripts/python` instead of `python` to ensure the venv interpreter is used.
 
 ```bash
 # Run all tests
-.venv\Scripts\python -m pytest tests/ -q
+.venv/Scripts/python -m pytest tests/ -q
 
 # Run a single test file
-.venv\Scripts\python -m pytest tests/test_schedule.py -q
+.venv/Scripts/python -m pytest tests/test_schedule.py -q
 
 # Run a single test by name
-.venv\Scripts\python -m pytest tests/test_schedule.py::test_function_name -q
+.venv/Scripts/python -m pytest tests/test_schedule.py::test_function_name -q
 ```
 
 ## Git
@@ -36,8 +36,25 @@ Commit messages must use the format `<type>: <description>`:
 | `feature` | New feature |
 | `fix` | Bug fix |
 | `refactor` | Code reorganisation without behaviour change |
+| `perf` | Performance optimisation (behaviour-preserving but measurably faster) |
+| `test` | Test-only change with no production behaviour impact |
 | `docs` | Documentation only |
-| `config` | Repo configuration |
+| `config` | Repo configuration (build, CI, tooling, dependencies) |
+| `revert` | Reverting a prior commit |
+
+If a change doesn't fit any of the above, propose a new type with reasoning and ask before using it. On approval, add the new row to this table in the same commit/PR — the table is the single source of truth.
+
+## Versioning and Changelog
+
+This project uses [Semantic Versioning](https://semver.org/) with the `MAJOR.MINOR.PATCH` scheme, currently in `0.x` initial development:
+
+| Bump | When |
+|---|---|
+| `MINOR` (`0.x.0`) | New package added, or a major new capability within an existing package |
+| `PATCH` (`0.x.y`) | Feature improvement, bug fix, or refactor within an existing package |
+| `MAJOR` (`1.0.0`) | Core API considered stable across all domains |
+
+`CHANGELOG.md` follows the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format. **Update `[Unreleased]` in the PR branch before opening the PR** — never after merge. Use `Added`, `Changed`, `Fixed`, or `Refactored` subsections. When cutting a release, promote `[Unreleased]` to a numbered version in a dedicated commit.
 
 GitHub is configured to auto-delete remote branches after a PR is merged. Local branches must be cleaned up manually:
 
@@ -47,56 +64,98 @@ git fetch --prune
 git branch -vv | grep "gone" | ForEach-Object { ($_ -split '\s+')[1] } | ForEach-Object { git branch -d $_ }
 ```
 
+## Working Conventions
+
+- **Docstrings** — NumPy-style with vertical signatures (one parameter per line for 2+ params beyond `self`); with type annotations present, do not repeat types in the `Parameters` section. Run `/docstring-audit` on all modified files before opening a PR.
+- **Notebooks** — clear all cell outputs before committing; `nbstripout` git hook is configured to enforce this.
+- **Per-package guidance** — each package directory has its own `CLAUDE.md` with module-level details. Read it when working in that subtree.
+- **Docs freshness** — the `/pre-pr` skill checks whether the root `CLAUDE.md`, the relevant per-package `CLAUDE.md`, and `README.md` need updating before opening a PR. Keep doc updates in the same PR as the code change.
+- **Subagent model selection** — when delegating to a subagent, pick the model deliberately. Use **Haiku** for mechanical work (file search, symbol lookup, cross-package sweeps, mass mechanical edits) — cost win, no cache penalty. Use **Opus** for the `Plan` subagent and other delegated reasoning tasks **when the goal is to keep the parent context clean** (e.g. parent is already heavy, or reasoning would pull in many large files). Plan inline by default — only delegate planning when context isolation is the actual reason. Default to the parent's model otherwise.
+
+## Logging
+
+Library code is configuration-free: every module declares its own logger and installs no handlers. Output is configured at the entry point (notebook, script, or test) by calling `setup_logging()` from the top-level `logging_config.py`, which loads `logging.yaml` via `logging.config.dictConfig`.
+
+### Adding a new module (any package)
+
+Two lines at the top, alongside the other imports:
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+```
+
+Then use `logger.info(...)`, `logger.debug(...)`, etc. throughout. Never call `logging.basicConfig()`, never attach handlers, never read `logging.yaml` from inside library code.
+
+### Adding a new package
+
+When you create a new top-level package (e.g. `vol/`), three places need updating in the same PR:
+
+1. **`<package>/__init__.py`** — install a `NullHandler` so the package's logger never emits a "no handler" warning when imported with no logging configured:
+   ```python
+   import logging
+
+   logging.getLogger(__name__).addHandler(logging.NullHandler())
+   ```
+2. **`logging.yaml`** — add a logger entry under `loggers:` matching the package name, level `INFO`, attaching the `console` handler, `propagate: false`. Copy any existing entry (e.g. `credit:`) as the template.
+3. **`logging_config.py`** — append the package name to the `_PACKAGE_LOGGERS` tuple so the `setup_logging(level=...)` override applies to it.
+
+If any of those three steps is missed, logs from the new package will either be silent (missing yaml entry) or unaffected by the `level=` override (missing tuple entry).
+
+### Level conventions
+
+| Level | When to use |
+|---|---|
+| `DEBUG` | Per-iteration / per-step traces inside hot loops (Newton-Raphson, bisection, schedule period generation). Always guard with `if logger.isEnabledFor(logging.DEBUG):` so disabled logging costs one attribute lookup. |
+| `INFO` | Lifecycle summaries: entry/exit of long-running operations, solver convergence (`"converged in N iterations"`), bootstrap pillar counts, DB seeding completion. One INFO line per logical operation, not per data point. |
+| `WARNING` | Degraded but recoverable conditions: solver hit max iterations but produced a usable answer, fallback path taken, deprecated input shape accepted. |
+| `ERROR` | Failure paths immediately before raising an exception. The exception message carries the human-readable detail; the log line carries structured fields useful for log aggregators. |
+
+### Performance rule
+
+Use `%`-style lazy formatting in log calls: `logger.info("x=%d y=%.4f", x, y)`, **not** f-strings. Lazy formatting is skipped entirely when the level is disabled. For DEBUG inside hot loops, additionally guard with `isEnabledFor`:
+
+```python
+if logger.isEnabledFor(logging.DEBUG):
+    logger.debug("NR iter=%d x=%.10f f(x)=%.3e", iteration, x, fx)
+```
+
+This guard pattern is mandatory in any solver that may iterate more than ~10 times per call.
+
+### Channel split: `warnings.warn` vs `logger`
+
+- **`warnings.warn(..., UserWarning)`** — user-facing data-quality signals the caller might want to suppress with `warnings.filterwarnings`. Example: `QuoteHierarchy` discarding a lower-priority quote on a maturity-date collision (`market_structures/rates/bootstrapper.py`).
+- **`logger.warning(...)`** — operational/diagnostic concerns the caller does not need to suppress per-call. Example: bisection hit max iterations.
+
+If unsure: would the user want to silence this with `filterwarnings` for a specific test or call? If yes, `warnings`. Otherwise `logger`.
+
+### Enabling output
+
+- **Notebook** — `setup_demo_env()` (in `examples/_setup.py`) calls `setup_logging()` automatically. To see per-iteration DEBUG traces, follow it with `setup_logging(level="DEBUG")`.
+- **Script** — call `setup_logging()` at the top of the `if __name__ == "__main__":` block. See `scripts/initialise.py` for the pattern.
+- **Tests** — never call `setup_logging()`; rely on pytest's `caplog` fixture, which attaches a handler dynamically. Use `caplog.at_level(logging.DEBUG, logger="<package>.<module>")` to capture records.
+
 ## Architecture
 
 A Python quantitative finance toolkit. Each domain lives in its own library package; the shared SQLite database (`quant.db`) holds reference data for all domains. `examples/` contains Jupyter notebooks that document each package.
 
-### Database (`database/`)
+| Package | Purpose | Details |
+|---|---|---|
+| `database/` | Connection management and per-domain table DDL/repositories | [`database/CLAUDE.md`](database/CLAUDE.md) |
+| `scripts/` | DB initialisation entry point and seed data generators | [`scripts/CLAUDE.md`](scripts/CLAUDE.md) |
+| `market_conventions/` | Shared enums (BDC, day count, compounding, stub) used across all packages | [`market_conventions/CLAUDE.md`](market_conventions/CLAUDE.md) |
+| `market_structures/` | Curves, market quotes, bootstrappers, interpolators | [`market_structures/CLAUDE.md`](market_structures/CLAUDE.md) |
+| `schedules/` | Accrual schedule generation, calendars, day count fractions | [`schedules/CLAUDE.md`](schedules/CLAUDE.md) |
+| `credit/` | Single-name CDS pricing on a bootstrapped survival curve | [`credit/CLAUDE.md`](credit/CLAUDE.md) |
+| `tests/` | Pytest suite with isolated DB fixture | [`tests/CLAUDE.md`](tests/CLAUDE.md) |
+| `examples/` | Jupyter notebooks demonstrating each package | [`examples/CLAUDE.md`](examples/CLAUDE.md) |
 
-Manages the connection and per-domain table definitions:
+### Cross-package invariants
 
-- **`connection.py`** — global DB path (`quant.db`); `set_db_path()` lets tests swap in a temp DB without touching `quant.db`
-- **`holidays.py`** — `create_holidays_table(conn)` DDL and `HolidayRepository` (add/remove/get_by_year/get_all)
+These rules touch multiple packages and must be honoured even when only one package's `CLAUDE.md` is loaded:
 
-### Initialisation (`scripts/initialise.py`)
-
-Single entry point for DB setup. `init_db()` runs all registered `create_<name>_table` functions from `_TABLE_CREATORS`. `_seed_holidays()` populates the holidays table; it is called when run as `__main__`, and exposed for notebooks. To add a new domain table: define `create_<name>_table(conn)` in `database/<name>.py` and append it to `_TABLE_CREATORS`.
-
-### Market Conventions (`market_conventions/`)
-
-Shared enums used across all packages:
-
-- **`business_day.py`** — `BusinessDayConvention` (UNADJUSTED/FOLLOWING/PRECEDING/MODIFIED_FOLLOWING)
-- **`compounding.py`** — `CompoundingType` (CONTINUOUS/SIMPLE/COMPOUNDED) and `CompoundingFrequency` (ANNUAL/SEMI_ANNUAL/QUARTERLY/MONTHLY)
-- **`day_count.py`** — `DayCountConvention` (ACT_360/ACT_365_FIXED/THIRTY_360_BOND/ACT_ACT_ISDA)
-- **`stub.py`** — `StubType` (SHORT_FRONT/LONG_FRONT/SHORT_BACK/LONG_BACK)
-
-### Market Structures (`market_structures/`)
-
-Objects for representing market data:
-
-- **`rates/curve.py`** — `ZeroCurve`: interpolated zero-rate curve with discount factor, zero rate, and forward rate queries. Supports pluggable interpolators and compounding conventions. For dates before the first pillar, discount factors are log-linearly interpolated from the implicit (t=0, DF=1) anchor at `reference_date`. Accepts an optional `quotes: list[MarketQuote]` parameter (populated automatically by the bootstrapper); `summary()` prints a formatted table of instrument type, start date, maturity date, tenor, market quote, discount factor, and zero rate per pillar.
-- **`rates/quotes.py`** — `MarketQuote` ABC and four concrete types: `DepositQuote`, `FuturesQuote` (IMM-dated, with convexity adjustment), `OISQuote` (self-discounting, continuous-approximation floating leg), `SwapQuote` (multi-curve: external `discount_curve`). `OISQuote` and `SwapQuote` accept `payment_lag: int = 0` (business days after accrual end) and `maturity_reference: MaturityReference` (`ACCRUAL_END` default or `PAYMENT_DATE`) controlling which date is used as the bootstrapping pillar. All concrete types implement `start_date()` (accrual start / IMM date), `quote_value()` (raw market observable), `maturity_date()`, `initial_guess()`, and `npv()`.
-- **`rates/bootstrapper.py`** — `ZeroCurveBootstrapper`: sequential pillar-by-pillar bootstrap using Newton-Raphson with forward finite-difference derivative. Instruments sorted by maturity; `RuntimeError` on NR non-convergence. `QuoteHierarchy` resolves maturity-date collisions by fixed instrument-type priority (deposit > OIS > swap > futures); the lower-priority quote is discarded with a `UserWarning`. **Every new `MarketQuote` subclass must be added to `QuoteHierarchy._RANK`.**
-- **`interpolation/interpolators.py`** — `LinearInterpolator`, `LogLinearInterpolator` (market standard for discount factors), `V2TInterpolator` (variance-to-time, for implied vol).
-
-### Schedules Library (`schedules/`)
-
-Generates accrual schedules for fixed income instruments (IRS, bonds):
-
-- **`schedule.py`** — `Schedule` class (main entry point) and `Period` dataclass (frozen: accrual start/end, pay date, DCF). `Frequency` enum lives here (DAILY/MONTHLY/QUARTERLY/SEMI_ANNUAL/ANNUAL). `payment_lag: int = 0` offsets `pay_date` by that many business days beyond the BDC-adjusted period end. `summary()` prints a header block (effective/termination dates, frequency, DCC, BDC, calendar, payment lag) followed by a per-period table (index, accrual start/end, pay date, days, DCF).
-- **`calendars.py`** — `CalendarType` enum (USD/EUR/GBP/PLN) and `HolidayCalendar` (holiday lookup + date adjustment). Lazy-caches holidays per year via `HolidayRepository`. `add_holiday(d, persist=False)` updates cache and optionally persists to DB. `add_business_days(d, n)` advances a date by `n` business days.
-- **`day_count.py`** — `day_count_fraction()`: ACT/360, ACT/365 Fixed, 30/360 Bond Basis, ACT/ACT ISDA.
-- **`date_utils.py`** — shared calendar-arithmetic utilities imported by rate and CDS quote types: `parse_tenor`, `add_spot_lag`, `add_tenor`, `imm_date` (3rd-Wednesday IMM date from code e.g. `"H26"`).
-
-### Tests (`tests/`)
-
-- **`conftest.py`** — `seeded_test_db` autouse fixture: redirects the global DB to a temp file, calls `init_db()`, and seeds holidays for 2020–2029. All tests run in isolation with no access to `quant.db`.
-- Test files cover schedule generation, calendars, day count conventions, holiday repository, zero curve, interpolators, survival curve, and CDS pricing.
-
-### Examples (`examples/`)
-
-Jupyter notebooks that demonstrate each library package. Each notebook:
-- adds the project root to `sys.path`
-- redirects the DB to `examples/demo.db` via `set_db_path()` (never touches `quant.db`)
-- seeds `demo.db` on first run (idempotent — skips if data already present)
+- **New `MarketQuote` subclass** — must be added to `QuoteHierarchy._RANK` in `market_structures/rates/bootstrapper.py`, otherwise the bootstrapper cannot resolve maturity-date collisions involving the new type.
+- **New domain table** — define `create_<name>_table(conn)` in `database/<name>.py` and append it to `_TABLE_CREATORS` in `scripts/initialise.py`.
+- **New top-level package** — install `NullHandler` in `<package>/__init__.py`, add a logger entry to `logging.yaml`, and append the package name to `_PACKAGE_LOGGERS` in `logging_config.py`. See the [Logging](#logging) section.
+- **Test isolation** — every test must run against the temp DB provided by the `seeded_test_db` autouse fixture in `tests/conftest.py`; never touch `quant.db` directly.

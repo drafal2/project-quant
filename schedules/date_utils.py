@@ -9,8 +9,29 @@ from schedules.calendars import HolidayCalendar
 _IMM_MONTHS = {'H': 3, 'M': 6, 'U': 9, 'Z': 12}
 
 
-def parse_tenor(tenor: str) -> tuple[int, str]:
-    """Parse a tenor string into (quantity, unit); unit is one of 'D', 'W', 'M', 'Y'."""
+def parse_tenor(
+    tenor: str,
+) -> tuple[int, str]:
+    """Parse a tenor string into (quantity, unit).
+
+    Parameters
+    ----------
+    tenor
+        Tenor string such as ``"3M"``, ``"1Y"``, ``"2W"``, ``"5D"``.
+        Case-insensitive; leading/trailing whitespace is stripped.
+
+    Returns
+    -------
+    tuple[int, str]
+        ``(quantity, unit)`` where unit is one of ``'D'``, ``'W'``, ``'M'``,
+        ``'Y'``.
+
+    Raises
+    ------
+    ValueError
+        If the unit is not recognised, the quantity is not a positive integer,
+        or the string cannot be parsed.
+    """
     tenor = tenor.strip().upper()
     unit = tenor[-1]
     if unit not in ('D', 'W', 'M', 'Y'):
@@ -24,8 +45,27 @@ def parse_tenor(tenor: str) -> tuple[int, str]:
     return quantity, unit
 
 
-def add_spot_lag(reference_date: date, spot_lag: int, cal: HolidayCalendar) -> date:
-    """Advance reference_date by spot_lag business days."""
+def add_spot_lag(
+    reference_date: date,
+    spot_lag: int,
+    cal: HolidayCalendar,
+) -> date:
+    """Advance reference_date by spot_lag business days.
+
+    Parameters
+    ----------
+    reference_date
+        Starting date from which business days are counted.
+    spot_lag
+        Number of business days to advance; zero returns reference_date unchanged.
+    cal
+        Holiday calendar used to identify non-business days.
+
+    Returns
+    -------
+    date
+        Date that is spot_lag business days after reference_date.
+    """
     d = reference_date
     remaining = spot_lag
     while remaining > 0:
@@ -35,11 +75,30 @@ def add_spot_lag(reference_date: date, spot_lag: int, cal: HolidayCalendar) -> d
     return d
 
 
-def add_tenor(start: date, 
-              tenor: str, 
-              cal: HolidayCalendar, 
-              bdc: BusinessDayConvention) -> date:
-    """Add a tenor string to a date and adjust to a business day."""
+def add_tenor(
+    start: date,
+    tenor: str,
+    cal: HolidayCalendar,
+    bdc: BusinessDayConvention,
+) -> date:
+    """Add a tenor string to a date and adjust to a business day.
+
+    Parameters
+    ----------
+    start
+        Base date to which the tenor is added.
+    tenor
+        Tenor string such as ``"3M"``, ``"1Y"``; parsed by ``parse_tenor``.
+    cal
+        Holiday calendar used for business day adjustment.
+    bdc
+        Business day convention applied to the resulting date.
+
+    Returns
+    -------
+    date
+        BDC-adjusted date after adding the tenor to start.
+    """
     quantity, unit = parse_tenor(tenor)
 
     if unit == 'D':
@@ -53,14 +112,31 @@ def add_tenor(start: date,
         month = total_months % 12 + 1
         day = min(start.day, _calendar.monthrange(year, month)[1])
         raw = date(year, month, day)
-        
+
     return cal.adjust(raw, bdc)
 
 
-def imm_date(imm_code: str) -> date:
+def imm_date(
+    imm_code: str,
+) -> date:
     """Return the 3rd Wednesday (unadjusted) of the IMM contract month.
 
-    IMM code format: letter (H/M/U/Z) + two-digit year (e.g. 'H26' = March 2026).
+    Parameters
+    ----------
+    imm_code
+        IMM contract code in the format ``<letter><2-digit-year>``, where the
+        letter is one of ``H`` (March), ``M`` (June), ``U`` (September),
+        ``Z`` (December). For example, ``"H26"`` resolves to March 2026.
+
+    Returns
+    -------
+    date
+        Unadjusted 3rd Wednesday of the contract month.
+
+    Raises
+    ------
+    ValueError
+        If the month letter is not one of ``H``, ``M``, ``U``, ``Z``.
     """
     imm_code = imm_code.strip().upper()
     letter = imm_code[0]

@@ -7,25 +7,48 @@ from abc import ABC, abstractmethod
 class Interpolator(ABC):
     """Abstract base class for 1-D interpolators operating on sorted pillar points."""
 
-    def __init__(self, extrapolate: bool = True) -> None:
-        """Initialise the interpolator with optional flat extrapolation beyond pillars."""
+    def __init__(
+        self,
+        extrapolate: bool = True,
+    ) -> None:
+        """Initialise the interpolator.
+
+        Parameters
+        ----------
+        extrapolate
+            If True, values outside the pillar range are held flat at the
+            nearest boundary value. If False, raises ``ValueError``.
+        """
         self._extrapolate = extrapolate
 
-    def interpolate(self, x: float, xs: list[float], ys: list[float]) -> float:
+    def interpolate(
+        self,
+        x: float,
+        xs: list[float],
+        ys: list[float],
+    ) -> float:
         """Interpolate y at x given sorted (xs, ys) pairs.
 
-        Args:
-            x: The point at which to interpolate.
-            xs: Sorted list of pillar x-values.
-            ys: Corresponding y-values.
+        Parameters
+        ----------
+        x
+            The point at which to interpolate.
+        xs
+            Sorted list of pillar x-values.
+        ys
+            Corresponding y-values.
 
-        Returns:
+        Returns
+        -------
+        float
             Interpolated y value. If x is outside [xs[0], xs[-1]] and
             extrapolate is True, returns the nearest boundary value (flat
-            extrapolation). Raises ValueError if extrapolate is False.
+            extrapolation).
 
-        Raises:
-            ValueError: If x is outside the pillar range and extrapolate is False.
+        Raises
+        ------
+        ValueError
+            If x is outside the pillar range and extrapolate is False.
         """
         if x == xs[0]:
             return ys[0]
@@ -38,10 +61,27 @@ class Interpolator(ABC):
         return self._interpolate(x, xs, ys)
 
     @abstractmethod
-    def _interpolate(self, x: float, xs: list[float], ys: list[float]) -> float:
-        """Interpolate within the pillar range.
+    def _interpolate(
+        self,
+        x: float,
+        xs: list[float],
+        ys: list[float],
+    ) -> float:
+        """Interpolate within the pillar range; x is strictly between xs[0] and xs[-1].
 
-        x is guaranteed to be strictly between xs[0] and xs[-1].
+        Parameters
+        ----------
+        x
+            The point at which to interpolate; strictly between xs[0] and xs[-1].
+        xs
+            Sorted list of pillar x-values.
+        ys
+            Corresponding y-values.
+
+        Returns
+        -------
+        float
+            Interpolated y value.
         """
         ...
 
@@ -53,12 +93,42 @@ class LinearInterpolator(Interpolator):
     values outside the pillar range are held flat at the nearest boundary value.
     """
 
-    def __init__(self, extrapolate: bool = True) -> None:
-        """Initialise the linear interpolator."""
+    def __init__(
+        self,
+        extrapolate: bool = True,
+    ) -> None:
+        """Initialise the linear interpolator.
+
+        Parameters
+        ----------
+        extrapolate
+            If True, values outside the pillar range are held flat at the
+            nearest boundary value. If False, raises ``ValueError``.
+        """
         super().__init__(extrapolate)
 
-    def _interpolate(self, x: float, xs: list[float], ys: list[float]) -> float:
-        """Interpolate linearly between the two adjacent pillars that bracket x."""
+    def _interpolate(
+        self,
+        x: float,
+        xs: list[float],
+        ys: list[float],
+    ) -> float:
+        """Interpolate linearly between the two adjacent pillars that bracket x.
+
+        Parameters
+        ----------
+        x
+            The point at which to interpolate; strictly between xs[0] and xs[-1].
+        xs
+            Sorted list of pillar x-values.
+        ys
+            Corresponding y-values.
+
+        Returns
+        -------
+        float
+            Linearly interpolated y value.
+        """
         for i in range(len(xs) - 1):
             if xs[i] <= x <= xs[i + 1]:
                 t = (x - xs[i]) / (xs[i + 1] - xs[i])
@@ -73,12 +143,42 @@ class LogLinearInterpolator(Interpolator):
     flat at the nearest boundary value.
     """
 
-    def __init__(self, extrapolate: bool = True) -> None:
-        """Initialise the log-linear interpolator."""
+    def __init__(
+        self,
+        extrapolate: bool = True,
+    ) -> None:
+        """Initialise the log-linear interpolator.
+
+        Parameters
+        ----------
+        extrapolate
+            If True, values outside the pillar range are held flat at the
+            nearest boundary value. If False, raises ``ValueError``.
+        """
         super().__init__(extrapolate)
 
-    def _interpolate(self, x: float, xs: list[float], ys: list[float]) -> float:
-        """Interpolate linearly on log(y) between the two adjacent pillars that bracket x."""
+    def _interpolate(
+        self,
+        x: float,
+        xs: list[float],
+        ys: list[float],
+    ) -> float:
+        """Interpolate linearly on log(y) between the two adjacent pillars that bracket x.
+
+        Parameters
+        ----------
+        x
+            The point at which to interpolate; strictly between xs[0] and xs[-1].
+        xs
+            Sorted list of pillar x-values.
+        ys
+            Corresponding y-values; must be strictly positive.
+
+        Returns
+        -------
+        float
+            Log-linearly interpolated y value.
+        """
         for i in range(len(xs) - 1):
             if xs[i] <= x <= xs[i + 1]:
                 t = (x - xs[i]) / (xs[i + 1] - xs[i])
@@ -98,12 +198,42 @@ class V2TInterpolator(Interpolator):
     at the nearest boundary volatility.
     """
 
-    def __init__(self, extrapolate: bool = True) -> None:
-        """Initialise the variance-to-time interpolator."""
+    def __init__(
+        self,
+        extrapolate: bool = True,
+    ) -> None:
+        """Initialise the variance-to-time interpolator.
+
+        Parameters
+        ----------
+        extrapolate
+            If True, values outside the pillar range are held flat at the
+            nearest boundary volatility. If False, raises ``ValueError``.
+        """
         super().__init__(extrapolate)
 
-    def _interpolate(self, x: float, xs: list[float], ys: list[float]) -> float:
-        """Interpolate by linearly blending total variance (σ²·T) then converting back to volatility."""
+    def _interpolate(
+        self,
+        x: float,
+        xs: list[float],
+        ys: list[float],
+    ) -> float:
+        """Interpolate by linearly blending total variance (σ²·T) then converting back to volatility.
+
+        Parameters
+        ----------
+        x
+            Time-to-expiry at which to interpolate; strictly between xs[0] and xs[-1].
+        xs
+            Sorted list of times-to-expiry.
+        ys
+            Implied volatilities at each expiry.
+
+        Returns
+        -------
+        float
+            Implied volatility at time x, consistent with non-decreasing total variance.
+        """
         for i in range(len(xs) - 1):
             if xs[i] <= x <= xs[i + 1]:
                 w_left = ys[i] ** 2 * xs[i]
