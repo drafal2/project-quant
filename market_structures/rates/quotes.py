@@ -13,8 +13,22 @@ from schedules.schedule import Frequency, Schedule
 from .curve import ZeroCurve
 
 
-def _resolve_calendar(calendar: CalendarType | HolidayCalendar) -> HolidayCalendar:
-    """Return a HolidayCalendar, constructing one from a CalendarType if necessary."""
+def _resolve_calendar(
+    calendar: CalendarType | HolidayCalendar,
+) -> HolidayCalendar:
+    """Return a HolidayCalendar, constructing one from a CalendarType if necessary.
+
+    Parameters
+    ----------
+    calendar
+        Either an existing ``HolidayCalendar`` instance or a ``CalendarType``
+        enum value from which one will be constructed.
+
+    Returns
+    -------
+    HolidayCalendar
+        Ready-to-use holiday calendar.
+    """
     return calendar if isinstance(calendar, HolidayCalendar) else HolidayCalendar(calendar)
 
 
@@ -36,24 +50,82 @@ class MarketQuote(ABC):
     """Abstract base for all instrument types used in curve bootstrapping."""
 
     @abstractmethod
-    def maturity_date(self, reference_date: date) -> date:
-        """Return the instrument's maturity date; used to sort and place the pillar."""
+    def maturity_date(
+        self,
+        reference_date: date,
+    ) -> date:
+        """Return the instrument's maturity date; used to sort and place the pillar.
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date used to resolve tenor-based maturities.
+
+        Returns
+        -------
+        date
+            Maturity date for this instrument.
+        """
 
     @abstractmethod
-    def start_date(self, reference_date: date) -> date:
-        """Return the accrual start date (spot date for deposits/swaps, IMM date for futures)."""
+    def start_date(
+        self,
+        reference_date: date,
+    ) -> date:
+        """Return the accrual start date (spot date for deposits/swaps, IMM date for futures).
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date used to compute the spot date.
+
+        Returns
+        -------
+        date
+            Accrual start date.
+        """
 
     @abstractmethod
     def quote_value(self) -> float:
-        """Return the raw market observable (rate for deposits/OIS/swaps, price for futures)."""
+        """Return the raw market observable (rate for deposits/OIS/swaps, price for futures).
+
+        Returns
+        -------
+        float
+            Market observable in its native units (decimal rate or exchange price).
+        """
 
     @abstractmethod
     def initial_guess(self) -> float:
-        """Return the Newton-Raphson seed for the zero rate at this pillar."""
+        """Return the Newton-Raphson seed for the zero rate at this pillar.
+
+        Returns
+        -------
+        float
+            Initial zero rate guess in decimal form.
+        """
 
     @abstractmethod
-    def npv(self, reference_date: date, curve: ZeroCurve) -> float:
-        """Return instrument NPV given a (partial) bootstrapped curve; 0.0 at par."""
+    def npv(
+        self,
+        reference_date: date,
+        curve: ZeroCurve,
+    ) -> float:
+        """Return instrument NPV given a (partial) bootstrapped curve; 0.0 at par.
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date.
+        curve
+            Partially bootstrapped zero curve covering at least this instrument's
+            maturity.
+
+        Returns
+        -------
+        float
+            Net present value; zero when the curve exactly prices this instrument.
+        """
 
 
 class DepositQuote(MarketQuote):
@@ -71,8 +143,23 @@ class DepositQuote(MarketQuote):
     ) -> None:
         """Initialise a deposit quote.
 
-        If ``maturity_date`` is provided it is used as the pillar date directly,
-        bypassing tenor-based computation.
+        Parameters
+        ----------
+        rate
+            Deposit rate in decimal form.
+        tenor
+            Tenor string (e.g. ``"3M"``, ``"1Y"``).
+        spot_lag
+            Number of business days from reference_date to the deposit start date.
+        calendar
+            Holiday calendar used for date adjustments.
+        business_day_convention
+            Business day convention applied to the maturity date.
+        day_count_convention
+            Day count convention for accrual fraction computation.
+        maturity_date
+            If provided, used as the pillar date directly, bypassing
+            tenor-based computation.
         """
         self.rate = rate
         self.tenor = tenor
@@ -82,33 +169,104 @@ class DepositQuote(MarketQuote):
         self.dcc = day_count_convention
         self._maturity_override = maturity_date
 
-    def _spot(self, reference_date: date) -> date:
+    def _spot(
+        self,
+        reference_date: date,
+    ) -> date:
+        """Return the deposit start date (spot date).
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date.
+
+        Returns
+        -------
+        date
+            Spot date, advanced by spot_lag business days from reference_date.
+        """
         return add_spot_lag(reference_date, self.spot_lag, self._cal)
 
-    def maturity_date(self, reference_date: date) -> date:
+    def maturity_date(
+        self,
+        reference_date: date,
+    ) -> date:
         """Return the deposit maturity date.
 
         Returns the override date if one was supplied at construction; otherwise
         computes spot + tenor BDC-adjusted.
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date used to compute the spot date.
+
+        Returns
+        -------
+        date
+            BDC-adjusted maturity date.
         """
         if self._maturity_override is not None:
             return self._maturity_override
         return add_tenor(self._spot(reference_date), self.tenor, self._cal, self.bdc)
 
-    def start_date(self, reference_date: date) -> date:
-        """Return the deposit start date (spot date)."""
+    def start_date(
+        self,
+        reference_date: date,
+    ) -> date:
+        """Return the deposit start date (spot date).
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date.
+
+        Returns
+        -------
+        date
+            Spot date.
+        """
         return self._spot(reference_date)
 
     def quote_value(self) -> float:
-        """Return the deposit rate."""
+        """Return the deposit rate.
+
+        Returns
+        -------
+        float
+            Deposit rate in decimal form.
+        """
         return self.rate
 
     def initial_guess(self) -> float:
-        """Return the deposit rate as the NR seed."""
+        """Return the deposit rate as the NR seed.
+
+        Returns
+        -------
+        float
+            Initial zero rate guess equal to the deposit rate.
+        """
         return self.rate
 
-    def npv(self, reference_date: date, curve: ZeroCurve) -> float:
-        """Return NPV: (1 + rate * dcf) * DF(mat) - DF(spot)."""
+    def npv(
+        self,
+        reference_date: date,
+        curve: ZeroCurve,
+    ) -> float:
+        """Return NPV: (1 + rate * dcf) * DF(mat) - DF(spot).
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date.
+        curve
+            Partially bootstrapped zero curve.
+
+        Returns
+        -------
+        float
+            Net present value; zero when the curve prices the deposit at par.
+        """
         spot = self._spot(reference_date)
         mat = self.maturity_date(reference_date)
         dcf = day_count_fraction(spot, mat, self.dcc)
@@ -129,10 +287,29 @@ class FuturesQuote(MarketQuote):
         convexity_adjustment: float = 0.0,
         maturity_date: date | None = None,
     ) -> None:
-        """Initialise a futures quote; price is the exchange price (e.g. 94.5).
+        """Initialise a futures quote.
 
-        If ``maturity_date`` is provided it is used as the pillar date directly,
-        bypassing IMM start + tenor computation.
+        Parameters
+        ----------
+        price
+            Exchange price (e.g. ``94.5``); the implied rate is ``(100 - price) / 100``.
+        imm_code
+            IMM contract code identifying the start month (e.g. ``"H26"`` for
+            March 2026).
+        tenor
+            Length of the contract period (e.g. ``"3M"``).
+        calendar
+            Holiday calendar used for date adjustments.
+        business_day_convention
+            Business day convention applied to the contract end date.
+        day_count_convention
+            Day count convention for accrual fraction computation.
+        convexity_adjustment
+            Rate adjustment (in decimal) applied to correct for the difference
+            between futures and forward rates. Defaults to ``0.0``.
+        maturity_date
+            If provided, used as the pillar date directly, bypassing
+            IMM start + tenor computation.
         """
         self.price = price
         self.imm_code = imm_code
@@ -144,32 +321,97 @@ class FuturesQuote(MarketQuote):
         self._maturity_override = maturity_date
 
     def _start(self) -> date:
+        """Return the IMM contract start date (3rd Wednesday of the contract month).
+
+        Returns
+        -------
+        date
+            IMM date derived from imm_code.
+        """
         return imm_date(self.imm_code)
 
-    def maturity_date(self, reference_date: date) -> date:
+    def maturity_date(
+        self,
+        reference_date: date,
+    ) -> date:
         """Return the contract end date.
 
         Returns the override date if one was supplied at construction; otherwise
         computes IMM start + tenor BDC-adjusted.
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date; not used in computation but required by the
+            ``MarketQuote`` interface.
+
+        Returns
+        -------
+        date
+            BDC-adjusted contract end date.
         """
         if self._maturity_override is not None:
             return self._maturity_override
         return add_tenor(self._start(), self.tenor, self._cal, self.bdc)
 
-    def start_date(self, reference_date: date) -> date:
-        """Return the IMM contract start date (3rd Wednesday of the contract month)."""
+    def start_date(
+        self,
+        reference_date: date,
+    ) -> date:
+        """Return the IMM contract start date (3rd Wednesday of the contract month).
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date; not used in computation but required by the
+            ``MarketQuote`` interface.
+
+        Returns
+        -------
+        date
+            IMM start date.
+        """
         return self._start()
 
     def quote_value(self) -> float:
-        """Return the exchange price (e.g. 95.25)."""
+        """Return the exchange price (e.g. 95.25).
+
+        Returns
+        -------
+        float
+            Futures exchange price.
+        """
         return self.price
 
     def initial_guess(self) -> float:
-        """Return the convexity-adjusted futures rate as the NR seed."""
+        """Return the convexity-adjusted futures rate as the NR seed.
+
+        Returns
+        -------
+        float
+            Implied rate after convexity adjustment, in decimal form.
+        """
         return (100.0 - self.price) / 100.0 - self.convexity_adjustment
 
-    def npv(self, reference_date: date, curve: ZeroCurve) -> float:
-        """Return NPV: (1 + adjusted_rate * dcf) * DF(end) - DF(start)."""
+    def npv(
+        self,
+        reference_date: date,
+        curve: ZeroCurve,
+    ) -> float:
+        """Return NPV: (1 + adjusted_rate * dcf) * DF(end) - DF(start).
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date.
+        curve
+            Partially bootstrapped zero curve.
+
+        Returns
+        -------
+        float
+            Net present value; zero when the curve prices the futures contract at par.
+        """
         adjusted_rate = self.initial_guess()
         start = self._start()
         end = self.maturity_date(reference_date)
@@ -196,8 +438,34 @@ class OISQuote(MarketQuote):
     ) -> None:
         """Initialise an OIS quote.
 
-        If ``maturity_date`` is provided it is used as the pillar date directly,
-        bypassing tenor computation and ``maturity_reference`` logic.
+        Parameters
+        ----------
+        rate
+            OIS fixed rate in decimal form.
+        tenor
+            Tenor string (e.g. ``"1Y"``, ``"2Y"``).
+        spot_lag
+            Number of business days from reference_date to the swap start date.
+        frequency
+            Payment frequency of the fixed leg.
+        calendar
+            Holiday calendar used for date adjustments.
+        business_day_convention
+            Business day convention applied to period end dates.
+        day_count_convention
+            Day count convention for accrual fraction computation.
+        stub_type
+            Stub placement when the tenor does not divide evenly into periods.
+            Defaults to ``StubType.SHORT_BACK``.
+        payment_lag
+            Number of business days after accrual end to the payment date.
+            Defaults to ``0``.
+        maturity_reference
+            Controls which date is used as the bootstrapping pillar:
+            ``ACCRUAL_END`` (default) or ``PAYMENT_DATE``.
+        maturity_date
+            If provided, used as the pillar date directly, bypassing tenor
+            computation and maturity_reference logic.
         """
         self.rate = rate
         self.tenor = tenor
@@ -211,16 +479,44 @@ class OISQuote(MarketQuote):
         self.maturity_reference = maturity_reference
         self._maturity_override = maturity_date
 
-    def _spot(self, reference_date: date) -> date:
+    def _spot(
+        self,
+        reference_date: date,
+    ) -> date:
+        """Return the swap start date (spot date).
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date.
+
+        Returns
+        -------
+        date
+            Spot date, advanced by spot_lag business days from reference_date.
+        """
         return add_spot_lag(reference_date, self.spot_lag, self._cal)
 
-    def maturity_date(self, reference_date: date) -> date:
+    def maturity_date(
+        self,
+        reference_date: date,
+    ) -> date:
         """Return the maturity date used as the bootstrapping pillar.
 
         Returns the override date if one was supplied at construction. Otherwise,
         with ``MaturityReference.ACCRUAL_END`` (default) this is spot + tenor
         BDC-adjusted; with ``MaturityReference.PAYMENT_DATE`` it is the accrual
         end advanced by ``payment_lag`` business days.
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date used to compute the spot date.
+
+        Returns
+        -------
+        date
+            Bootstrapping pillar date.
         """
         if self._maturity_override is not None:
             return self._maturity_override
@@ -229,23 +525,68 @@ class OISQuote(MarketQuote):
             return self._cal.add_business_days(accrual_end, self.payment_lag)
         return accrual_end
 
-    def start_date(self, reference_date: date) -> date:
-        """Return the OIS start date (spot date)."""
+    def start_date(
+        self,
+        reference_date: date,
+    ) -> date:
+        """Return the OIS start date (spot date).
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date.
+
+        Returns
+        -------
+        date
+            Spot date.
+        """
         return self._spot(reference_date)
 
     def quote_value(self) -> float:
-        """Return the OIS fixed rate."""
+        """Return the OIS fixed rate.
+
+        Returns
+        -------
+        float
+            OIS fixed rate in decimal form.
+        """
         return self.rate
 
     def initial_guess(self) -> float:
-        """Return the OIS rate as the NR seed."""
+        """Return the OIS rate as the NR seed.
+
+        Returns
+        -------
+        float
+            Initial zero rate guess equal to the OIS fixed rate.
+        """
         return self.rate
 
-    def npv(self, reference_date: date, curve: ZeroCurve) -> float:
+    def npv(
+        self,
+        reference_date: date,
+        curve: ZeroCurve,
+    ) -> float:
         """Return NPV: floating_pv - fixed_pv using continuous approximation for floating leg.
 
         Floating leg PV is approximated as DF(spot) - DF(maturity), which is exact in the
         continuous-rate limit. Both legs are discounted on the same curve (self-discounting).
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date.
+        curve
+            Partially bootstrapped zero curve (used as both projection and discount curve).
+
+        Returns
+        -------
+        float
+            Net present value; zero when the curve prices the OIS at par.
+
+        Notes
+        -----
         # TODO: implement exact daily compounding for the floating leg
         """
         spot = self._spot(reference_date)
@@ -287,8 +628,40 @@ class SwapQuote(MarketQuote):
     ) -> None:
         """Initialise a swap quote with an external discount curve for multi-curve pricing.
 
-        If ``maturity_date`` is provided it is used as the pillar date directly,
-        bypassing tenor computation and ``maturity_reference`` logic.
+        Parameters
+        ----------
+        rate
+            Swap fixed rate in decimal form.
+        tenor
+            Tenor string (e.g. ``"5Y"``, ``"10Y"``).
+        spot_lag
+            Number of business days from reference_date to the swap start date.
+        fixed_frequency
+            Payment frequency of the fixed leg.
+        fixed_day_count
+            Day count convention for the fixed leg accrual fraction.
+        floating_frequency
+            Payment frequency of the floating leg.
+        floating_day_count
+            Day count convention for the floating leg accrual fraction.
+        calendar
+            Holiday calendar used for date adjustments.
+        business_day_convention
+            Business day convention applied to period end dates.
+        discount_curve
+            External zero curve used to discount both legs (multi-curve setup).
+        stub_type
+            Stub placement when the tenor does not divide evenly into periods.
+            Defaults to ``StubType.SHORT_BACK``.
+        payment_lag
+            Number of business days after accrual end to the payment date.
+            Defaults to ``0``.
+        maturity_reference
+            Controls which date is used as the bootstrapping pillar:
+            ``ACCRUAL_END`` (default) or ``PAYMENT_DATE``.
+        maturity_date
+            If provided, used as the pillar date directly, bypassing tenor
+            computation and maturity_reference logic.
         """
         self.rate = rate
         self.tenor = tenor
@@ -305,16 +678,44 @@ class SwapQuote(MarketQuote):
         self.maturity_reference = maturity_reference
         self._maturity_override = maturity_date
 
-    def _spot(self, reference_date: date) -> date:
+    def _spot(
+        self,
+        reference_date: date,
+    ) -> date:
+        """Return the swap start date (spot date).
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date.
+
+        Returns
+        -------
+        date
+            Spot date, advanced by spot_lag business days from reference_date.
+        """
         return add_spot_lag(reference_date, self.spot_lag, self._cal)
 
-    def maturity_date(self, reference_date: date) -> date:
+    def maturity_date(
+        self,
+        reference_date: date,
+    ) -> date:
         """Return the maturity date used as the bootstrapping pillar.
 
         Returns the override date if one was supplied at construction. Otherwise,
         with ``MaturityReference.ACCRUAL_END`` (default) this is spot + tenor
         BDC-adjusted; with ``MaturityReference.PAYMENT_DATE`` it is the accrual
         end advanced by ``payment_lag`` business days.
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date used to compute the spot date.
+
+        Returns
+        -------
+        date
+            Bootstrapping pillar date.
         """
         if self._maturity_override is not None:
             return self._maturity_override
@@ -323,23 +724,66 @@ class SwapQuote(MarketQuote):
             return self._cal.add_business_days(accrual_end, self.payment_lag)
         return accrual_end
 
-    def start_date(self, reference_date: date) -> date:
-        """Return the swap start date (spot date)."""
+    def start_date(
+        self,
+        reference_date: date,
+    ) -> date:
+        """Return the swap start date (spot date).
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date.
+
+        Returns
+        -------
+        date
+            Spot date.
+        """
         return self._spot(reference_date)
 
     def quote_value(self) -> float:
-        """Return the swap fixed rate."""
+        """Return the swap fixed rate.
+
+        Returns
+        -------
+        float
+            Swap fixed rate in decimal form.
+        """
         return self.rate
 
     def initial_guess(self) -> float:
-        """Return the swap rate as the NR seed."""
+        """Return the swap rate as the NR seed.
+
+        Returns
+        -------
+        float
+            Initial zero rate guess equal to the swap fixed rate.
+        """
         return self.rate
 
-    def npv(self, reference_date: date, curve: ZeroCurve) -> float:
+    def npv(
+        self,
+        reference_date: date,
+        curve: ZeroCurve,
+    ) -> float:
         """Return NPV: floating_pv - fixed_pv under multi-curve pricing.
 
         curve is the projection curve (being bootstrapped); self.discount_curve is the
         external discount curve used for both leg present values.
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date.
+        curve
+            Projection curve being bootstrapped; used to compute forward rates
+            on the floating leg.
+
+        Returns
+        -------
+        float
+            Net present value; zero when the projection curve prices the swap at par.
         """
         spot = self._spot(reference_date)
         mat = self.maturity_date(reference_date)

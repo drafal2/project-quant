@@ -3,8 +3,21 @@
 from datetime import date, timedelta
 
 
-def _easter(year: int) -> date:
-    """Compute Easter Sunday for a given year using the Anonymous Gregorian algorithm."""
+def _easter(
+    year: int,
+) -> date:
+    """Compute Easter Sunday for a given year using the Anonymous Gregorian algorithm.
+
+    Parameters
+    ----------
+    year
+        Calendar year for which Easter Sunday is computed.
+
+    Returns
+    -------
+    date
+        Date of Easter Sunday in the given year.
+    """
     a = year % 19
     b = year // 100
     c = year % 100
@@ -22,15 +35,56 @@ def _easter(year: int) -> date:
     return date(year, month, day)
 
 
-def _nth_weekday(year: int, month: int, weekday: int, n: int) -> date:
-    """Return the nth occurrence of a weekday (0=Mon) in the given month and year."""
+def _nth_weekday(
+    year: int,
+    month: int,
+    weekday: int,
+    n: int,
+) -> date:
+    """Return the nth occurrence of a weekday in the given month and year.
+
+    Parameters
+    ----------
+    year
+        Calendar year.
+    month
+        Calendar month (1–12).
+    weekday
+        Target weekday as an integer (0 = Monday, 6 = Sunday).
+    n
+        Occurrence number (1 = first, 2 = second, etc.).
+
+    Returns
+    -------
+    date
+        Date of the nth occurrence of weekday in the specified month.
+    """
     first = date(year, month, 1)
     offset = (weekday - first.weekday()) % 7
     return first + timedelta(days=offset + (n - 1) * 7)
 
 
-def _last_weekday(year: int, month: int, weekday: int) -> date:
-    """Return the last occurrence of a weekday (0=Mon) in the given month and year."""
+def _last_weekday(
+    year: int,
+    month: int,
+    weekday: int,
+) -> date:
+    """Return the last occurrence of a weekday in the given month and year.
+
+    Parameters
+    ----------
+    year
+        Calendar year.
+    month
+        Calendar month (1–12).
+    weekday
+        Target weekday as an integer (0 = Monday, 6 = Sunday).
+
+    Returns
+    -------
+    date
+        Date of the last occurrence of weekday in the specified month.
+    """
     import calendar
     last_day = calendar.monthrange(year, month)[1]
     last = date(year, month, last_day)
@@ -38,8 +92,22 @@ def _last_weekday(year: int, month: int, weekday: int) -> date:
     return last - timedelta(days=offset)
 
 
-def _observed(d: date) -> date:
-    """Return the observed date when a holiday falls on a weekend (Fri if Sat, Mon if Sun)."""
+def _observed(
+    d: date,
+) -> date:
+    """Return the observed date when a holiday falls on a weekend.
+
+    Parameters
+    ----------
+    d
+        Nominal holiday date.
+
+    Returns
+    -------
+    date
+        Friday before if d is Saturday; Monday after if d is Sunday;
+        d itself otherwise.
+    """
     if d.weekday() == 5:
         return d - timedelta(days=1)
     if d.weekday() == 6:
@@ -47,8 +115,21 @@ def _observed(d: date) -> date:
     return d
 
 
-def _usd_holidays(year: int) -> dict:
-    """Return US public holiday dates and names for the given year."""
+def _usd_holidays(
+    year: int,
+) -> dict[date, str]:
+    """Return US public holiday dates and names for the given year.
+
+    Parameters
+    ----------
+    year
+        Calendar year for which holidays are generated.
+
+    Returns
+    -------
+    dict[date, str]
+        Mapping of holiday date to holiday name.
+    """
     h = {}
     h[_observed(date(year, 1, 1))]          = "New Year's Day"
     h[_nth_weekday(year, 1, 0, 3)]          = "MLK Day"
@@ -65,8 +146,21 @@ def _usd_holidays(year: int) -> dict:
     return h
 
 
-def _eur_holidays(year: int) -> dict:
-    """Return ECB TARGET holiday dates and names for the given year."""
+def _eur_holidays(
+    year: int,
+) -> dict[date, str]:
+    """Return ECB TARGET holiday dates and names for the given year.
+
+    Parameters
+    ----------
+    year
+        Calendar year for which holidays are generated.
+
+    Returns
+    -------
+    dict[date, str]
+        Mapping of holiday date to holiday name.
+    """
     easter = _easter(year)
     return {
         date(year, 1, 1):               "New Year's Day",
@@ -78,8 +172,21 @@ def _eur_holidays(year: int) -> dict:
     }
 
 
-def _pln_holidays(year: int) -> dict:
-    """Return Polish public holiday dates and names for the given year."""
+def _pln_holidays(
+    year: int,
+) -> dict[date, str]:
+    """Return Polish public holiday dates and names for the given year.
+
+    Parameters
+    ----------
+    year
+        Calendar year for which holidays are generated.
+
+    Returns
+    -------
+    dict[date, str]
+        Mapping of holiday date to holiday name.
+    """
     easter = _easter(year)
     h = {
         date(year, 1, 1):               "New Year's Day",
@@ -102,8 +209,21 @@ def _pln_holidays(year: int) -> dict:
     return h
 
 
-def _gbp_holidays(year: int) -> dict:
-    """Return UK public holiday dates and names for the given year."""
+def _gbp_holidays(
+    year: int,
+) -> dict[date, str]:
+    """Return UK public holiday dates and names for the given year.
+
+    Parameters
+    ----------
+    year
+        Calendar year for which holidays are generated.
+
+    Returns
+    -------
+    dict[date, str]
+        Mapping of holiday date to holiday name.
+    """
     easter = _easter(year)
     h = {}
 
