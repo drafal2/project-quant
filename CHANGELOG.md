@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-07
+
 ### Added
 - Logging infrastructure: per-module `getLogger(__name__)`, `NullHandler` on every package `__init__`, and YAML-driven `dictConfig` (`logging.yaml`) loaded via `logging_config.setup_logging(level=...)`. INFO-level lifecycle summaries plus DEBUG per-iteration traces (guarded by `isEnabledFor`) on the rate Newton-Raphson and CDS bisection bootstrappers
 - `PyYAML>=6.0` runtime dependency for the YAML logging config
