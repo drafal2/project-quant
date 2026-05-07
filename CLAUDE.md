@@ -39,6 +39,18 @@ Commit messages must use the format `<type>: <description>`:
 | `docs` | Documentation only |
 | `config` | Repo configuration |
 
+## Versioning and Changelog
+
+This project uses [Semantic Versioning](https://semver.org/) with the `MAJOR.MINOR.PATCH` scheme, currently in `0.x` initial development:
+
+| Bump | When |
+|---|---|
+| `MINOR` (`0.x.0`) | New package added, or a major new capability within an existing package |
+| `PATCH` (`0.x.y`) | Feature improvement, bug fix, or refactor within an existing package |
+| `MAJOR` (`1.0.0`) | Core API considered stable across all domains |
+
+`CHANGELOG.md` follows the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format. **Update `[Unreleased]` in the PR branch before opening the PR** — never after merge. Use `Added`, `Changed`, `Fixed`, or `Refactored` subsections. When cutting a release, promote `[Unreleased]` to a numbered version in a dedicated commit.
+
 GitHub is configured to auto-delete remote branches after a PR is merged. Local branches must be cleaned up manually:
 
 ```powershell
