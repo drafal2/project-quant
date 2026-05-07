@@ -64,7 +64,7 @@ git branch -vv | grep "gone" | ForEach-Object { ($_ -split '\s+')[1] } | ForEach
 - **Docstrings** — NumPy-style with vertical signatures (one parameter per line for 2+ params beyond `self`); with type annotations present, do not repeat types in the `Parameters` section. Run `/docstring-audit` on all modified files before opening a PR.
 - **Notebooks** — clear all cell outputs before committing; `nbstripout` git hook is configured to enforce this.
 - **Per-package guidance** — each package directory has its own `CLAUDE.md` with module-level details. Read it when working in that subtree.
-- **Post-merge** — after merging to master, always check whether the root `CLAUDE.md`, the relevant per-package `CLAUDE.md`, and `README.md` need updating to reflect the changes.
+- **Docs freshness** — the `/pre-pr` skill checks whether the root `CLAUDE.md`, the relevant per-package `CLAUDE.md`, and `README.md` need updating before opening a PR. Keep doc updates in the same PR as the code change.
 
 ## Architecture
 
