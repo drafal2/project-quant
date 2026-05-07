@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-05-07
+
 ### Refactored
 - Migrated the four example notebooks (`01_schedule_generation`, `02_market_structures`, `03_cds_pricing`, `04_zero_curve_bootstrapping`) to call `setup_demo_env()` from `examples/_setup.py`, replacing the per-notebook `sys.path` / `set_db_path` / `init_db` / holiday-seeding boilerplate with a single helper call matching `_template.ipynb`
 
