@@ -23,14 +23,27 @@ YEAR_TO = 2100
 
 
 def init_db() -> None:
-    """Create all registered domain tables in the database."""
+    """Create all registered domain tables in the database.
+
+    Iterates over ``_TABLE_CREATORS`` and executes each DDL function against
+    the active database path returned by ``get_db_path()``.
+    """
     with sqlite3.connect(get_db_path()) as conn:
         for create in _TABLE_CREATORS:
             create(conn)
 
 
-def _seed_holidays(conn: sqlite3.Connection) -> None:
-    """Populate the holidays table for all calendars from YEAR_FROM to YEAR_TO."""
+def _seed_holidays(
+    conn: sqlite3.Connection,
+) -> None:
+    """Populate the holidays table for all calendars from YEAR_FROM to YEAR_TO.
+
+    Parameters
+    ----------
+    conn
+        Active SQLite connection on which the inserts are executed. Existing
+        holiday rows are cleared before re-seeding.
+    """
     conn.execute("DELETE FROM holidays")
     for year in range(YEAR_FROM, YEAR_TO + 1):
         for calendar, fn in _HOLIDAY_CALENDARS:
