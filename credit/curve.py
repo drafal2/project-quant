@@ -18,13 +18,18 @@ if TYPE_CHECKING:
 class InterpolationVariable(Enum):
     """Pillar variable that is linearly interpolated between pillars.
 
-    SURVIVAL_PROBABILITY     pillar values are Q(t_i); linear interpolation in Q(t),
-                             flat extrapolation beyond the last pillar.
-    DEFAULT_SPREAD           pillar values are s_i with Q(t_i) = exp(-s_i * t_i);
-                             linear interpolation in s(t), flat extrapolation.
-    FORWARD_DEFAULT_SPREAD   pillar values are forward hazard rates lambda_i, one
-                             per segment (t_{i-1}, t_i]; piecewise-constant in
-                             lambda, flat extrapolation of the last segment rate.
+    Attributes
+    ----------
+    SURVIVAL_PROBABILITY
+        Pillar values are Q(t_i); linear interpolation in Q(t), flat
+        extrapolation beyond the last pillar.
+    DEFAULT_SPREAD
+        Pillar values are s_i with Q(t_i) = exp(-s_i * t_i); linear
+        interpolation in s(t), flat extrapolation.
+    FORWARD_DEFAULT_SPREAD
+        Pillar values are forward hazard rates lambda_i, one per segment
+        (t_{i-1}, t_i]; piecewise-constant in lambda, flat extrapolation
+        of the last segment rate.
     """
 
     SURVIVAL_PROBABILITY = "survival_probability"
@@ -50,7 +55,37 @@ class CreditCurve:
         day_count_convention: DayCountConvention = DayCountConvention.ACT_365_FIXED,
         quotes: list[CdsQuote] | None = None,
     ) -> None:
-        """Construct a credit curve from pillar dates and values of the chosen variable."""
+        """Construct a credit curve from pillar dates and values of the chosen variable.
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date (t=0); all pillar dates must lie strictly after.
+        pillar_dates
+            Pillar dates, one per pillar value. Sorted internally.
+        pillar_values
+            Pillar values for the configured ``interpolation_variable``:
+            survival probabilities Q(t_i), cumulative default spreads s_i, or
+            piecewise forward hazard rates lambda_i.
+        interpolation_variable
+            Variable that is interpolated between pillars. Defaults to
+            ``FORWARD_DEFAULT_SPREAD``.
+        day_count_convention
+            Day count used for converting dates to year fractions. Defaults to
+            ``ACT_365_FIXED``.
+        quotes
+            Optional list of CDS quotes that calibrated this curve, retained
+            for downstream inspection (e.g. ``summary``).
+
+        Raises
+        ------
+        ValueError
+            If ``pillar_dates`` and ``pillar_values`` differ in length, if no
+            pillars are supplied, if any pillar date is at or before
+            ``reference_date``, or if pillar values violate the interpolation
+            variable's invariants (survival in (0, 1] and non-increasing;
+            spreads and hazard rates non-negative).
+        """
         if len(pillar_dates) != len(pillar_values):
             raise ValueError("pillar_dates and pillar_values must have the same length")
         if len(pillar_dates) == 0:
@@ -73,22 +108,22 @@ class CreditCurve:
 
     @property
     def reference_date(self) -> date:
-        """Return the curve reference date."""
+        """Curve reference date (t=0)."""
         return self._reference_date
 
     @property
     def interpolation_variable(self) -> InterpolationVariable:
-        """Return the variable that is interpolated between pillars."""
+        """Variable that is interpolated between pillars."""
         return self._variable
 
     @property
     def pillar_dates(self) -> list[date]:
-        """Return the curve pillar dates in chronological order."""
+        """Pillar dates in chronological order."""
         return list(self._pillar_dates)
 
     @property
     def pillar_values(self) -> list[float]:
-        """Return the curve pillar values in the configured interpolation variable."""
+        """Pillar values in the configured interpolation variable."""
         return list(self._pillar_values)
 
     def _t(self, d: date) -> float:
@@ -96,7 +131,15 @@ class CreditCurve:
         return day_count_fraction(self._reference_date, d, self._dcc)
 
     def _validate_values(self) -> None:
-        """Validate pillar values against the interpolation-variable invariants."""
+        """Validate pillar values against the interpolation-variable invariants.
+
+        Raises
+        ------
+        ValueError
+            For ``SURVIVAL_PROBABILITY``: if any value is outside (0, 1] or
+            the sequence is not non-increasing. For ``DEFAULT_SPREAD`` and
+            ``FORWARD_DEFAULT_SPREAD``: if any value is negative.
+        """
         v = self._pillar_values
         if self._variable is InterpolationVariable.SURVIVAL_PROBABILITY:
             if any(q <= 0.0 or q > 1.0 for q in v):
@@ -108,7 +151,14 @@ class CreditCurve:
                 raise ValueError(f"{self._variable.value} values must be >= 0")
 
     def _compute_pillar_survivals(self) -> list[float]:
-        """Compute Q(t_i) at each pillar from the configured pillar values."""
+        """Compute Q(t_i) at each pillar from the configured pillar values.
+
+        Returns
+        -------
+        list[float]
+            Survival probability at each pillar, in the same order as
+            ``self._pillar_dates``.
+        """
         v = self._pillar_values
         ts = self._pillar_times
         if self._variable is InterpolationVariable.SURVIVAL_PROBABILITY:
@@ -125,17 +175,51 @@ class CreditCurve:
         return survivals
 
     def non_default_probability(self, d: date) -> float:
-        """Return the survival probability Q(d) = P(tau > d)."""
+        """Return the survival probability Q(d) = P(tau > d).
+
+        Parameters
+        ----------
+        d
+            Query date.
+
+        Returns
+        -------
+        float
+            Survival probability at ``d``; ``1.0`` for any ``d`` at or before
+            the reference date.
+        """
         if d <= self._reference_date:
             return 1.0
         return self._survival_at_time(self._t(d))
 
     def survival_probability(self, d: date) -> float:
-        """Alias for ``non_default_probability``."""
+        """Alias for :meth:`non_default_probability`.
+
+        Parameters
+        ----------
+        d
+            Query date.
+
+        Returns
+        -------
+        float
+            Survival probability at ``d``.
+        """
         return self.non_default_probability(d)
 
     def default_probability(self, d: date) -> float:
-        """Return the cumulative default probability 1 - Q(d)."""
+        """Return the cumulative default probability ``1 - Q(d)``.
+
+        Parameters
+        ----------
+        d
+            Query date.
+
+        Returns
+        -------
+        float
+            Probability of default by ``d``.
+        """
         return 1.0 - self.non_default_probability(d)
 
     def _survival_at_time(self, t: float) -> float:
@@ -177,7 +261,25 @@ class CreditCurve:
         return qs[i - 1] * math.exp(-v[i] * (t - ts[i - 1]))
 
     def default_spread(self, d: date) -> float:
-        """Return the cumulative-equivalent default spread s with Q(d) = exp(-s * t(d))."""
+        """Return the cumulative-equivalent default spread s with Q(d) = exp(-s * t(d)).
+
+        Parameters
+        ----------
+        d
+            Query date; must lie strictly after the reference date.
+
+        Returns
+        -------
+        float
+            Continuously compounded default spread implied by the curve at
+            ``d``.
+
+        Raises
+        ------
+        ValueError
+            If ``d`` is at or before the reference date, or if the implied
+            survival probability is non-positive.
+        """
         if d <= self._reference_date:
             raise ValueError("default_spread undefined at or before reference_date")
         q = self.non_default_probability(d)
@@ -185,8 +287,33 @@ class CreditCurve:
             raise ValueError(f"non-positive survival probability at {d}")
         return -math.log(q) / self._t(d)
 
-    def forward_default_spread(self, start: date, end: date) -> float:
-        """Return the forward hazard rate between two dates: -ln(Q(end)/Q(start))/dt."""
+    def forward_default_spread(
+        self,
+        start: date,
+        end: date,
+    ) -> float:
+        """Return the forward hazard rate between two dates.
+
+        Computes ``-ln(Q(end) / Q(start)) / (t(end) - t(start))``.
+
+        Parameters
+        ----------
+        start
+            Period start date.
+        end
+            Period end date; must lie strictly after ``start``.
+
+        Returns
+        -------
+        float
+            Forward hazard rate over the interval.
+
+        Raises
+        ------
+        ValueError
+            If ``start`` is not strictly before ``end``, or if either
+            endpoint's survival probability is non-positive.
+        """
         if start >= end:
             raise ValueError("start must be before end")
         q_start = self.non_default_probability(start)
@@ -197,7 +324,16 @@ class CreditCurve:
         return -math.log(q_end / q_start) / dt
 
     def summary(self) -> str:
-        """Return a formatted table of pillars with Q, cumulative spread, and forward hazard."""
+        """Return a formatted table of pillars with Q, cumulative spread, and forward hazard.
+
+        Returns
+        -------
+        str
+            Multi-line table; each row shows pillar date, year fraction,
+            survival probability, cumulative-equivalent default spread, and
+            the forward hazard rate from the prior pillar (or reference date
+            for the first pillar).
+        """
         if not self._pillar_dates:
             return ""
         header = (

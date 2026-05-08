@@ -17,16 +17,19 @@ from .quotes import CdsQuote
 
 
 class BootstrapMode(Enum):
-    """Bootstrapping strategy.
+    """Bootstrapping strategy for the credit curve.
 
-    SEQUENTIAL  scalar Newton-Raphson per pillar; pillar i is solved holding
-                pillars < i fixed. Standard, fast, well-conditioned.
-    GLOBAL      multivariate Newton-Raphson on the vector NPV system; all
-                pillar values are updated simultaneously. Equivalent to
-                SEQUENTIAL when the system is exactly determined and the
-                interpolation is causal (no upstream effect on earlier
-                pillars), but more robust when small numerical perturbations
-                couple pillars.
+    Attributes
+    ----------
+    SEQUENTIAL
+        Scalar Newton-Raphson per pillar; pillar i is solved holding
+        pillars < i fixed. Standard, fast, well-conditioned.
+    GLOBAL
+        Multivariate Newton-Raphson on the vector NPV system; all pillar
+        values are updated simultaneously. Equivalent to ``SEQUENTIAL`` when
+        the system is exactly determined and the interpolation is causal
+        (no upstream effect on earlier pillars), but more robust when small
+        numerical perturbations couple pillars.
     """
 
     SEQUENTIAL = "sequential"
@@ -56,7 +59,43 @@ class CreditCurveBootstrapper:
         max_iterations: int = 50,
         tolerance: float = 1e-10,
     ) -> None:
-        """Initialise the bootstrapper with quotes, curves, and solver configuration."""
+        """Initialise the bootstrapper with quotes, curves, and solver configuration.
+
+        Parameters
+        ----------
+        reference_date
+            Curve anchor date (t=0); both pillar dates and zero-curve queries
+            are measured relative to this date.
+        quotes
+            CDS spread quotes to bootstrap from. Sorted internally by maturity
+            and required to have distinct maturity dates.
+        zero_curve
+            Risk-free discount curve used to price the candidate CDS at each
+            bootstrap step.
+        recovery_rate
+            Constant recovery rate applied uniformly across pillars; must lie
+            in [0, 1).
+        interpolation_variable
+            Pillar variable solved for at each step. Defaults to
+            ``FORWARD_DEFAULT_SPREAD`` (piecewise-constant hazard rates).
+        day_count_convention
+            Day count used for time-to-pillar fractions in survival arithmetic.
+            Defaults to ``ACT_365_FIXED``.
+        mode
+            ``SEQUENTIAL`` (default) solves one pillar at a time; ``GLOBAL``
+            solves the full vector system simultaneously.
+        max_iterations
+            Newton-Raphson iteration cap, applied to both modes. Defaults to
+            ``50``.
+        tolerance
+            Convergence threshold on the NPV residual (max absolute residual
+            across pillars in ``GLOBAL`` mode). Defaults to ``1e-10``.
+
+        Raises
+        ------
+        ValueError
+            If ``quotes`` is empty, or if ``recovery_rate`` is outside [0, 1).
+        """
         if not quotes:
             raise ValueError("at least one CDS quote is required")
         if not 0.0 <= recovery_rate < 1.0:
@@ -72,7 +111,26 @@ class CreditCurveBootstrapper:
         self._tolerance = tolerance
 
     def bootstrap(self) -> CreditCurve:
-        """Run the bootstrap and return the calibrated ``CreditCurve``."""
+        """Run the bootstrap and return the calibrated ``CreditCurve``.
+
+        Sorts quotes by maturity, dispatches to the configured ``BootstrapMode``,
+        and assembles the resulting pillar values into a fresh ``CreditCurve``
+        that retains the original quotes for downstream inspection.
+
+        Returns
+        -------
+        CreditCurve
+            Curve with one pillar per quote, calibrated so that each quote
+            prices to zero NPV under the chosen interpolation variable.
+
+        Raises
+        ------
+        ValueError
+            If two or more quotes share the same maturity date.
+        RuntimeError
+            If Newton-Raphson fails to converge within ``max_iterations``, or
+            if the global Jacobian is singular.
+        """
         sorted_quotes = sorted(
             self._quotes, key=lambda q: q.maturity_date(self._reference_date)
         )
@@ -113,7 +171,22 @@ class CreditCurveBootstrapper:
         pillar_dates: list[date],
         values: list[float],
     ) -> CreditCurve:
-        """Build a (possibly partial) ``CreditCurve`` for the solver to evaluate."""
+        """Build a (possibly partial) ``CreditCurve`` for the solver to evaluate.
+
+        Parameters
+        ----------
+        pillar_dates
+            Dates of the pillars seen so far (in sequential mode) or all
+            pillars (in global mode).
+        values
+            Pillar values for the configured ``InterpolationVariable``, one
+            per date in ``pillar_dates``.
+
+        Returns
+        -------
+        CreditCurve
+            Curve constructed from the given pillars; quotes are not attached.
+        """
         return CreditCurve(
             reference_date=self._reference_date,
             pillar_dates=pillar_dates,
@@ -122,8 +195,26 @@ class CreditCurveBootstrapper:
             day_count_convention=self._dcc,
         )
 
-    def _quote_npv(self, quote: CdsQuote, curve: CreditCurve) -> float:
-        """Return the CDS NPV under a candidate curve, with the quote's market spread."""
+    def _quote_npv(
+        self,
+        quote: CdsQuote,
+        curve: CreditCurve,
+    ) -> float:
+        """Return the CDS NPV for ``quote`` priced under ``curve``.
+
+        Parameters
+        ----------
+        quote
+            Market quote whose schedule and spread are used to instantiate a
+            ``SingleNameCDS``.
+        curve
+            Candidate credit curve under which the trade is priced.
+
+        Returns
+        -------
+        float
+            Trade NPV (zero at the calibrated pillar value).
+        """
         cds = SingleNameCDS(
             schedule=quote.schedule(self._reference_date),
             spread=quote.quote_value(),
@@ -139,7 +230,21 @@ class CreditCurveBootstrapper:
         sorted_quotes: list[CdsQuote],
         pillar_dates: list[date],
     ) -> list[float]:
-        """Solve pillar-by-pillar with scalar Newton-Raphson."""
+        """Solve pillar-by-pillar with scalar Newton-Raphson.
+
+        Parameters
+        ----------
+        sorted_quotes
+            Quotes in ascending maturity order.
+        pillar_dates
+            Maturity dates corresponding to ``sorted_quotes``, one per pillar.
+
+        Returns
+        -------
+        list[float]
+            Calibrated pillar values for the configured interpolation variable,
+            in the same order as ``sorted_quotes``.
+        """
         known_values: list[float] = []
         for i, q in enumerate(sorted_quotes):
             def objective(
@@ -160,7 +265,30 @@ class CreditCurveBootstrapper:
         sorted_quotes: list[CdsQuote],
         pillar_dates: list[date],
     ) -> list[float]:
-        """Solve all pillars simultaneously via multivariate Newton-Raphson."""
+        """Solve all pillars simultaneously via multivariate Newton-Raphson.
+
+        Each Newton step builds the full Jacobian by forward-bumping every
+        pillar value in turn and solves the resulting linear system for the
+        update vector.
+
+        Parameters
+        ----------
+        sorted_quotes
+            Quotes in ascending maturity order.
+        pillar_dates
+            Maturity dates corresponding to ``sorted_quotes``.
+
+        Returns
+        -------
+        list[float]
+            Calibrated pillar values for the configured interpolation variable.
+
+        Raises
+        ------
+        RuntimeError
+            If the Newton iteration fails to converge within ``max_iterations``,
+            or if the Jacobian is (numerically) singular at any step.
+        """
         n = len(sorted_quotes)
         x = [self._initial_guess(q) for q in sorted_quotes]
 
@@ -188,8 +316,31 @@ class CreditCurveBootstrapper:
             f"tolerance={self._tolerance:.2e}."
         )
 
-    def _scalar_newton(self, f: Callable[[float], float], x0: float) -> float:
-        """Solve f(x) = 0 with scalar Newton-Raphson and a forward-difference derivative."""
+    def _scalar_newton(
+        self,
+        f: Callable[[float], float],
+        x0: float,
+    ) -> float:
+        """Solve f(x) = 0 with scalar Newton-Raphson and a forward-difference derivative.
+
+        Parameters
+        ----------
+        f
+            Objective function whose root is sought.
+        x0
+            Initial guess.
+
+        Returns
+        -------
+        float
+            Root x with ``abs(f(x))`` below ``tolerance``.
+
+        Raises
+        ------
+        RuntimeError
+            If the derivative vanishes at any iterate, or if convergence is
+            not reached within ``max_iterations``.
+        """
         x = x0
         for iteration in range(self._max_iterations):
             fx = f(x)
@@ -209,8 +360,30 @@ class CreditCurveBootstrapper:
         )
 
 
-def _solve_linear_system(matrix: list[list[float]], rhs: list[float]) -> list[float]:
-    """Solve A x = b with Gaussian elimination and partial pivoting."""
+def _solve_linear_system(
+    matrix: list[list[float]],
+    rhs: list[float],
+) -> list[float]:
+    """Solve A x = b with Gaussian elimination and partial pivoting.
+
+    Parameters
+    ----------
+    matrix
+        Square coefficient matrix as a list of rows.
+    rhs
+        Right-hand side vector with length equal to ``len(matrix)``.
+
+    Returns
+    -------
+    list[float]
+        Solution vector x.
+
+    Raises
+    ------
+    RuntimeError
+        If the pivot at any elimination step is below 1e-14, indicating a
+        (numerically) singular system.
+    """
     n = len(rhs)
     a = [row[:] + [rhs[i]] for i, row in enumerate(matrix)]
     for k in range(n):

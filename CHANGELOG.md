@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- Converted docstrings across `credit/` (`quotes.py`, `bootstrapper.py`, `curve.py`, `pricing.py`) to NumPy style with `Parameters`, `Returns`, `Raises`, and `Attributes` sections; reformatted multi-parameter signatures to vertical style
+
 ## [0.6.0] - 2026-05-07
 
 ### Added

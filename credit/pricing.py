@@ -12,12 +12,21 @@ from .curve import CreditCurve
 
 
 class CdsSide(Enum):
-    """Trade side for CDS NPV reporting."""
+    """Trade side for CDS NPV reporting.
+
+    Attributes
+    ----------
+    BUYER
+        Protection buyer: receives the protection leg (default payment) and
+        pays the premium leg. NPV = protection_leg_pv - premium_leg_pv.
+    SELLER
+        Protection seller: pays on default and receives premium. NPV is the
+        negative of the buyer's NPV.
+    """
 
     BUYER = "buyer"
     SELLER = "seller"
 
-# TODO: docstrings should include parameters descriptions, notes and info what is returned
 
 class SingleNameCDS:
     """Single-name CDS pricer under the deterministic-intensity (first-jump) model.
@@ -51,7 +60,39 @@ class SingleNameCDS:
         notional: float = 1.0,
         side: CdsSide = CdsSide.BUYER,
     ) -> None:
-        """Initialise a CDS pricer from a ``Schedule`` and market/model inputs."""
+        """Initialise a CDS pricer from a ``Schedule`` and market/model inputs.
+
+        Parameters
+        ----------
+        pricing_date
+            Valuation date; must equal the reference date of both the zero
+            curve and the credit curve.
+        schedule
+            Premium-leg schedule. For new trades pass
+            ``quote.schedule(reference_date)``; for mid-life trades build a
+            schedule from the last coupon date to maturity.
+        spread
+            Contractual running coupon spread in decimal form (0.01 = 100 bps).
+            Must be non-negative.
+        recovery_rate
+            Constant recovery rate paid at default; must lie in [0, 1).
+        zero_curve
+            Risk-free discount curve used to price both legs.
+        credit_curve
+            Survival curve used to evaluate Q(t) on the protection and
+            accrual-on-default integrals.
+        notional
+            Trade notional. Defaults to ``1.0``.
+        side
+            Trade side for NPV sign convention. Defaults to ``BUYER``.
+
+        Raises
+        ------
+        ValueError
+            If either curve's reference date does not match ``pricing_date``,
+            if ``spread`` is negative, if ``recovery_rate`` is outside [0, 1),
+            or if no accrual periods remain after ``pricing_date``.
+        """
         if zero_curve.reference_date != pricing_date:
             raise ValueError(
                 f"zero_curve.reference_date {zero_curve.reference_date} "
@@ -81,11 +122,28 @@ class SingleNameCDS:
         self._side = side
 
     @staticmethod
-    def _clip_periods(periods: list[Period], pricing_date: date) -> list[Period]:
+    def _clip_periods(
+        periods: list[Period],
+        pricing_date: date,
+    ) -> list[Period]:
         """Drop fully elapsed periods; live periods retain their original DCF.
 
         The premium coupon is fixed as spread * full_dcf * N regardless of when
         the trade is priced mid-period, so the DCF is never rescaled here.
+
+        Parameters
+        ----------
+        periods
+            All periods produced by the input schedule.
+        pricing_date
+            Valuation date; periods whose accrual end is at or before this
+            date are removed.
+
+        Returns
+        -------
+        list[Period]
+            Live periods (those with ``accrual_end > pricing_date``), in the
+            original order and with unchanged DCFs.
         """
         return [p for p in periods if p.accrual_end > pricing_date]
 
@@ -114,13 +172,27 @@ class SingleNameCDS:
         )
 
     def protection_leg_pv(self) -> float:
-        """Return the protection leg PV: (1 - R) * sum_i DF_mid_i * (Q_{i-1} - Q_i)."""
+        """Return the protection leg PV: (1 - R) * sum_i DF_mid_i * (Q_{i-1} - Q_i).
+
+        Returns
+        -------
+        float
+            Present value of the contingent default payment, scaled by
+            ``notional``.
+        """
         loss = 1.0 - self._recovery_rate
         total = sum(self._df_mid(p) * self._delta_q(p) for p in self._periods)
         return self._notional * loss * total
 
     def premium_leg_running_pv(self) -> float:
-        """Return the running coupon PV: s * sum_i alpha_i * DF(pay_i) * Q(accrual_end_i)."""
+        """Return the running coupon PV: s * sum_i alpha_i * DF(pay_i) * Q(accrual_end_i).
+
+        Returns
+        -------
+        float
+            Present value of the contractual running coupons, ignoring the
+            accrual-on-default contribution. Scaled by ``notional``.
+        """
         total = sum(
             p.dcf * self._zero_curve.discount_factor(p.pay_date)
             * self._credit_curve.non_default_probability(p.accrual_end)
@@ -129,7 +201,14 @@ class SingleNameCDS:
         return self._notional * self._spread * total
 
     def accrual_on_default_pv(self) -> float:
-        """Return PV of premium accrued to default: s * sum_i (alpha_i/2) * DF_mid_i * dQ_i."""
+        """Return PV of premium accrued to default: s * sum_i (alpha_i/2) * DF_mid_i * dQ_i.
+
+        Returns
+        -------
+        float
+            Midpoint-rule approximation to the accrued-coupon payment made
+            at the default time. Scaled by ``notional``.
+        """
         total = sum(
             0.5 * p.dcf * self._df_mid(p) * self._delta_q(p)
             for p in self._periods
@@ -137,11 +216,25 @@ class SingleNameCDS:
         return self._notional * self._spread * total
 
     def premium_leg_pv(self) -> float:
-        """Return the full premium leg PV (running coupons plus accrued-on-default)."""
+        """Return the full premium leg PV (running coupons plus accrued-on-default).
+
+        Returns
+        -------
+        float
+            ``premium_leg_running_pv() + accrual_on_default_pv()``.
+        """
         return self.premium_leg_running_pv() + self.accrual_on_default_pv()
 
     def rpv01(self) -> float:
-        """Return the risky annuity (premium leg PV per unit spread, per unit notional)."""
+        """Return the risky annuity (premium leg PV per unit spread, per unit notional).
+
+        Returns
+        -------
+        float
+            Sum of running and accrual-on-default contributions divided by
+            ``spread`` and ``notional`` — i.e. the premium leg PV at unit
+            spread on unit notional.
+        """
         total = sum(
             p.dcf * self._zero_curve.discount_factor(p.pay_date)
             * self._credit_curve.non_default_probability(p.accrual_end)
@@ -151,7 +244,19 @@ class SingleNameCDS:
         return self._notional * total
 
     def par_spread(self) -> float:
-        """Return the spread that makes NPV zero: protection_leg_pv / rpv01."""
+        """Return the spread that makes NPV zero: protection_leg_pv / rpv01.
+
+        Returns
+        -------
+        float
+            Par CDS spread implied by the curves and schedule.
+
+        Raises
+        ------
+        ZeroDivisionError
+            If the risky annuity is zero (e.g. all surviving probability mass
+            is past the schedule horizon).
+        """
         rpv01 = self.rpv01()
         if rpv01 == 0.0:
             raise ZeroDivisionError("RPV01 is zero; par spread undefined")
@@ -162,6 +267,12 @@ class SingleNameCDS:
 
         Buyer of protection receives the protection leg and pays the premium leg.
         Seller is the negative of buyer.
+
+        Returns
+        -------
+        float
+            ``protection_leg_pv - premium_leg_pv`` for ``BUYER``; negated for
+            ``SELLER``.
         """
         buyer_npv = self.protection_leg_pv() - self.premium_leg_pv()
         return buyer_npv if self._side is CdsSide.BUYER else -buyer_npv
@@ -172,6 +283,12 @@ class SingleNameCDS:
         Columns: period index, accrual start, accrual end, pay date, DCF,
         survival probability at accrual end, discount factor at pay date,
         undiscounted cash flow, running coupon PV, and accrual-on-default PV.
+
+        Returns
+        -------
+        str
+            Multi-line table with header, one row per live period, and a
+            footer row totalling running PV, AoD PV, and total premium PV.
         """
         header = (
             f"{'#':>3}  {'Accrual Start':>13}  {'Accrual End':>11}  {'Pay Date':>10}"
@@ -216,6 +333,12 @@ class SingleNameCDS:
         Columns: period index, accrual start, accrual end, survival probability
         at start and end, period default probability ΔQ, midpoint discount factor,
         and protection PV contribution.
+
+        Returns
+        -------
+        str
+            Multi-line table with header, one row per live period, and a
+            footer row totalling the protection PV.
         """
         header = (
             f"{'#':>3}  {'Accrual Start':>13}  {'Accrual End':>11}"

@@ -39,8 +39,48 @@ class CdsQuote:
     ) -> None:
         """Initialise a CDS spread quote (spread in decimal, e.g. 0.01 = 100 bps).
 
-        If ``maturity_date`` is provided it is used as the pillar date directly,
-        bypassing tenor computation and ``maturity_reference`` logic.
+        Parameters
+        ----------
+        spread
+            Market CDS spread in decimal form (0.01 = 100 bps). Must be strictly
+            positive.
+        tenor
+            Tenor string used to derive the maturity from the accrual start
+            (e.g. ``"5Y"``). Ignored when ``maturity_date`` is supplied.
+        spot_lag
+            Number of business days from ``reference_date`` to the accrual start
+            (T+spot_lag). Defaults to ``0``.
+        pay_frequency
+            Premium-leg coupon frequency. Defaults to ``QUARTERLY``.
+        calendar
+            Holiday calendar (or ``CalendarType`` to construct one) used for
+            spot lag, tenor advance, BDC adjustment, and payment lag.
+        business_day_convention
+            Adjustment applied to schedule dates that fall on non-business days.
+            Defaults to ``FOLLOWING``.
+        day_count_convention
+            Day count used for premium-leg accrual fractions. Defaults to
+            ``ACT_360``.
+        stub_type
+            Stub placement when the schedule does not divide evenly. Defaults
+            to ``SHORT_FRONT``.
+        payment_lag
+            Business days from accrual end to the cash payment date; also used
+            to derive the maturity when ``maturity_reference`` is
+            ``PAYMENT_DATE``. Defaults to ``0``.
+        maturity_reference
+            Selects whether the bootstrapping pillar maturity is the BDC-
+            adjusted accrual end (``ACCRUAL_END``, default) or the payment
+            date (``PAYMENT_DATE``).
+        maturity_date
+            Optional explicit maturity date. When supplied it is used as the
+            pillar date directly, bypassing tenor computation and
+            ``maturity_reference`` logic.
+
+        Raises
+        ------
+        ValueError
+            If ``spread`` is not strictly positive.
         """
         if spread <= 0:
             raise ValueError(f"spread must be positive, got {spread}")
@@ -61,7 +101,18 @@ class CdsQuote:
         return add_spot_lag(reference_date, self._spot_lag, self._cal)
 
     def start_date(self, reference_date: date) -> date:
-        """Return the CDS accrual start date."""
+        """Return the CDS accrual start date.
+
+        Parameters
+        ----------
+        reference_date
+            Anchor date from which the spot lag is applied.
+
+        Returns
+        -------
+        date
+            ``reference_date + spot_lag`` business days.
+        """
         return self._spot(reference_date)
 
     def maturity_date(self, reference_date: date) -> date:
@@ -71,6 +122,18 @@ class CdsQuote:
         with ``MaturityReference.ACCRUAL_END`` (default) this is spot + tenor
         BDC-adjusted; with ``MaturityReference.PAYMENT_DATE`` it is the accrual
         end advanced by ``payment_lag`` business days.
+
+        Parameters
+        ----------
+        reference_date
+            Anchor date from which the accrual start (and hence maturity) is
+            derived. Ignored when an explicit ``maturity_date`` was supplied
+            at construction.
+
+        Returns
+        -------
+        date
+            Pillar maturity date for bootstrapping.
         """
         if self._maturity_override is not None:
             return self._maturity_override
@@ -80,11 +143,29 @@ class CdsQuote:
         return accrual_end
 
     def quote_value(self) -> float:
-        """Return the market CDS spread in decimal."""
+        """Return the market CDS spread in decimal.
+
+        Returns
+        -------
+        float
+            CDS spread in decimal form (0.01 = 100 bps).
+        """
         return self._spread
 
     def schedule(self, reference_date: date) -> Schedule:
-        """Return the premium-leg ``Schedule`` for this quote rooted at ``reference_date``."""
+        """Return the premium-leg ``Schedule`` for this quote rooted at ``reference_date``.
+
+        Parameters
+        ----------
+        reference_date
+            Anchor date used to resolve the accrual start and maturity.
+
+        Returns
+        -------
+        Schedule
+            Premium-leg schedule built from this quote's conventions, running
+            from ``start_date(reference_date)`` to ``maturity_date(reference_date)``.
+        """
         return Schedule(
             effective_date=self._spot(reference_date),
             termination_date=self.maturity_date(reference_date),
@@ -97,7 +178,19 @@ class CdsQuote:
         )
 
     def bumped(self, delta: float) -> "CdsQuote":
-        """Return a new ``CdsQuote`` with the spread shifted by ``delta``."""
+        """Return a new ``CdsQuote`` with the spread shifted by ``delta``.
+
+        Parameters
+        ----------
+        delta
+            Spread shift in decimal form (e.g. ``1e-4`` for a 1 bp bump).
+
+        Returns
+        -------
+        CdsQuote
+            New quote with ``spread + delta`` and all other conventions copied
+            unchanged. Used for finite-difference CS01 via re-bootstrapping.
+        """
         return CdsQuote(
             spread=self._spread + delta,
             tenor=self.tenor,
