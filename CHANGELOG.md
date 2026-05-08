@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-08
+
 ### Added
 - `credit.CreditCurveBootstrapper` with `BootstrapMode.SEQUENTIAL` (scalar Newton-Raphson per pillar) and `BootstrapMode.GLOBAL` (multivariate Newton-Raphson on the full NPV system with finite-difference Jacobian and Gaussian-elimination linear solve)
 - `credit.CreditCurve` with `InterpolationVariable` enum supporting three parameterisations: `SURVIVAL_PROBABILITY` (linear in Q), `DEFAULT_SPREAD` (linear in cumulative s), and `FORWARD_DEFAULT_SPREAD` (piecewise-constant forward hazard, ISDA-style)
