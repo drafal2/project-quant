@@ -83,6 +83,11 @@ class ZeroCurve:
         self._times = [self._t(d) for d in self._pillar_dates]
         self._dfs = [self._rate_to_df(r, t) for r, t in zip(self._rates, self._times)]
 
+    @property
+    def reference_date(self) -> date:
+        """Return the curve reference date."""
+        return self._reference_date
+
     def _t(
         self,
         d: date,
