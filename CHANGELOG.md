@@ -6,8 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- `credit.CreditCurveBootstrapper` with `BootstrapMode.SEQUENTIAL` (scalar Newton-Raphson per pillar) and `BootstrapMode.GLOBAL` (multivariate Newton-Raphson on the full NPV system with finite-difference Jacobian and Gaussian-elimination linear solve)
+- `credit.CreditCurve` with `InterpolationVariable` enum supporting three parameterisations: `SURVIVAL_PROBABILITY` (linear in Q), `DEFAULT_SPREAD` (linear in cumulative s), and `FORWARD_DEFAULT_SPREAD` (piecewise-constant forward hazard, ISDA-style)
+- `credit.CdsSide` enum and `side` parameter on `SingleNameCDS` for buyer/seller NPV sign convention
+- `pricing_date` parameter on `SingleNameCDS` with automatic clipping of fully-elapsed periods, enabling mid-life trade valuation while preserving the contractual DCF on the first live period
+- `SingleNameCDS.premium_leg_summary()` and `protection_leg_summary()` — formatted per-period breakdowns of the two legs
+- `examples/03_cds_pricing.ipynb` — detailed CDS pricing walkthrough: deterministic-intensity model, leg decomposition, RPV01, par spread, mid-life pricing, and CS01/RR01/IR01 via bump-and-rebootstrap
+- `examples/05_credit_curve_bootstrapping.ipynb` — companion notebook on credit-curve bootstrapping across the three interpolation variables and both bootstrap modes
+
 ### Changed
+- `SingleNameCDS` now accepts a `Schedule` object directly (was: list of `Period`); `CdsQuote.schedule(reference_date)` returns the matching `Schedule`. The constructor calls `schedule.generate()` internally
 - Converted docstrings across `credit/` (`quotes.py`, `bootstrapper.py`, `curve.py`, `pricing.py`) to NumPy style with `Parameters`, `Returns`, `Raises`, and `Attributes` sections; reformatted multi-parameter signatures to vertical style
+
+### Fixed
+- `Schedule._build_periods`: BDC adjustment is now applied to both `accrual_start` and `accrual_end` (previously only `accrual_end`)
+
+### Refactored
+- Removed legacy `credit/survival_curve.py` and `credit/cds.py`; replaced by `credit/curve.py` (`CreditCurve`) and `credit/pricing.py` (`SingleNameCDS`, `CdsSide`)
 
 ## [0.6.0] - 2026-05-07
 

@@ -16,5 +16,6 @@ When inspecting a notebook, never `Read` the whole `.ipynb` — the JSON seriali
 
 - `01_schedule_generation.ipynb` — `schedules/`
 - `02_market_structures.ipynb` — `market_structures/` (curves, quotes, interpolators)
-- `03_cds_pricing.ipynb` — `credit/`
+- `03_cds_pricing.ipynb` — `credit/` (single-name CDS pricing: legs, RPV01, par spread, mid-life valuation, sensitivities)
 - `04_zero_curve_bootstrapping.ipynb` — `market_structures/rates/bootstrapper.py`
+- `05_credit_curve_bootstrapping.ipynb` — `credit/bootstrapper.py` (sequential vs. global Newton-Raphson; three interpolation variables)
