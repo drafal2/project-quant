@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-05-11
+
+### Added
+- `examples/05_credit_curve_bootstrapping.ipynb`: per-quote segment-coloured plot of the bootstrapped survival curve, and a verification cell that reconstructs `Q` from the `Tenor` and `FwdHazard` columns under `FORWARD_DEFAULT_SPREAD` interpolation
+- `examples/05_credit_curve_bootstrapping.ipynb` §1: named definitions of survival probability, default density, and cumulative-equivalent spread, plus a side-by-side comparison of cumulative-equivalent spread `s(t)` and market-quoted CDS par spread `s*(T)` (recovery scaling and RPV01-weighting)
+- `examples/03_cds_pricing.ipynb` §1: hazard-rate interpretation of `lambda(t)` and derivation of `-dQ(t) = lambda(t) Q(t) dt`
+- "Reading `CreditCurve.summary()`" column-legend markdown cells in both `examples/03_cds_pricing.ipynb` and `examples/05_credit_curve_bootstrapping.ipynb`
+
+### Changed
+- `CreditCurve.summary()`: column header `FwdHazard` renamed to `FwdHazard (lambda(t))` to make the hazard-rate column explicit; docstring expanded with a per-column legend
+
+### Fixed
+- `examples/05_credit_curve_bootstrapping.ipynb`: API drift against current `credit/` — replaced `Schedule[:n]` indexing with `list(schedule)[:n]`, removed calls to the no-longer-existing `SingleNameCDS.from_quote(...)`, and updated constructor kwargs from `reference_date`/`periods` to `pricing_date`/`schedule`
+
 ## [0.7.0] - 2026-05-08
 
 ### Added
