@@ -329,16 +329,34 @@ class CreditCurve:
         Returns
         -------
         str
-            Multi-line table; each row shows pillar date, year fraction,
-            survival probability, cumulative-equivalent default spread, and
-            the forward hazard rate from the prior pillar (or reference date
-            for the first pillar).
+            Multi-line table prefixed with the configured
+            ``InterpolationVariable``. Columns:
+
+            - ``Pillar`` — pillar date.
+            - ``Tenor`` — year fraction ``t_i`` from the reference date,
+              under the curve's day-count convention.
+            - ``Q`` — survival probability ``Q(t_i) = P(tau > t_i)``.
+            - ``DefSpread`` — cumulative-equivalent default spread
+              ``s(t_i) = -ln Q(t_i) / t_i``, anchored at the reference
+              date. Equivalently, the time-average of the hazard rate from
+              ``0`` to ``t_i``.
+            - ``FwdHazard (lambda(t))`` — segment-local forward hazard
+              ``-ln(Q_i / Q_{i-1}) / (t_i - t_{i-1})`` from the previous
+              pillar (or reference date for the first pillar). Under
+              ``FORWARD_DEFAULT_SPREAD`` interpolation this is the
+              piecewise-constant ``lambda`` on the segment exactly; under
+              the other parameterisations it is the segment-average of a
+              continuously varying ``lambda(t)``.
+
+            For pillar 1, ``DefSpread`` and ``FwdHazard`` coincide; further
+            out they diverge whenever the term structure of hazards is
+            non-flat.
         """
         if not self._pillar_dates:
             return ""
         header = (
             f"{'Pillar':>12} {'Tenor':>10} {'Q':>10} "
-            f"{'DefSpread':>12} {'FwdHazard':>12}"
+            f"{'DefSpread':>12} {'FwdHazard (lambda(t))':>12}"
         )
         sep = "-" * len(header)
         rows = [f"InterpolationVariable: {self._variable.value}", header, sep]
