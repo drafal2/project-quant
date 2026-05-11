@@ -1,6 +1,16 @@
 # project-quant
 
-A Python quantitative finance toolkit. Each domain lives in its own library package; the shared SQLite database (`quant.db`) holds reference data for all domains.
+A Python quantitative finance toolkit for building, calibrating, and pricing instruments from scratch — no third-party pricing libraries. The current scope covers interest-rate curve construction and single-name CDS pricing on a bootstrapped survival curve, with the shared infrastructure (schedules, calendars, day counts, market conventions) that both rely on. Reference data (holidays, future seed instruments) lives in a shared SQLite database (`quant.db`).
+
+The toolkit is organised as a set of independent library packages under one repo. Each package owns one domain and is documented by its own `CLAUDE.md`; the root `CLAUDE.md` lists the cross-package invariants. Jupyter notebooks under `examples/` walk through each package end-to-end.
+
+## Capabilities
+
+- **Accrual schedules** — IRS/bond-style period generation with `SHORT/LONG × FRONT/BACK` stubs, four business-day conventions, four day-count conventions, USD/EUR/GBP/PLN calendars, and configurable payment lag.
+- **Zero-curve bootstrapping** — sequential pillar-by-pillar Newton-Raphson over deposits, IMM futures (with convexity adjustment), OIS, and multi-curve swaps. Pluggable interpolators (linear, log-linear, variance-to-time). Maturity collisions resolved by an explicit instrument-type hierarchy.
+- **Credit-curve bootstrapping** — single-name CDS spreads → survival curve, in two modes: scalar Newton-Raphson per pillar (`SEQUENTIAL`) or multivariate NR on the full NPV vector with a finite-difference Jacobian (`GLOBAL`). Three interpolation variables: survival probability, default spread, or piecewise-constant forward hazard (ISDA-style).
+- **Single-name CDS pricing** — protection leg, running-premium leg, accrual-on-default, RPV01, par spread, mid-life valuation (live-period DCF preserved). Sensitivities (CS01 parallel/bucket, RR01, IR01) computed by bump-and-rebootstrap.
+- **Library-grade logging** — every module declares `logger = logging.getLogger(__name__)`; output is configured at the entry point via `setup_logging()` driven by `logging.yaml`. Solvers emit INFO summaries and guarded DEBUG per-iteration traces.
 
 ## Requirements
 
@@ -43,14 +53,25 @@ This is optional but recommended — notebooks committed with outputs produce no
 
 ## Examples
 
-The `examples/` folder contains Jupyter notebooks that demonstrate each library package. Open them in VS Code or Jupyter and select the `project-quant` kernel.
+The `examples/` folder contains Jupyter notebooks that demonstrate each library package. Open them in VS Code or Jupyter and select the `project-quant` kernel. They are the recommended starting point for understanding the toolkit.
+
+| Notebook | Covers |
+|---|---|
+| `01_schedule_generation.ipynb` | accrual schedules, calendars, day counts, stubs |
+| `02_market_structures.ipynb` | zero curves, market quotes, interpolators |
+| `03_cds_pricing.ipynb` | single-name CDS legs, RPV01, par spread, mid-life valuation, CS01/RR01/IR01 |
+| `04_zero_curve_bootstrapping.ipynb` | sequential NR bootstrap over deposits / futures / OIS / swaps |
+| `05_credit_curve_bootstrapping.ipynb` | sequential vs. global NR; three interpolation variables |
 
 ## Packages
 
 | Package | Description |
 |---|---|
-| `credit` | Single-name CDS pricing: survival curve bootstrap, par spread, MTM, CS01, RR01 |
-| `market_structures` | Zero curve with pluggable interpolators; interpolation primitives |
-| `schedules` | Accrual schedule generation for fixed income instruments (IRS, bonds) |
-| `database` | SQLite connection and per-domain table management |
-| `scripts` | Database initialisation and seeding |
+| `market_conventions` | Shared enums (BDC, day count, compounding, stub) used across all packages |
+| `schedules` | Accrual schedule generation, holiday calendars, day-count fractions, tenor/IMM date utilities |
+| `market_structures` | `ZeroCurve` with pluggable interpolators; deposit/futures/OIS/swap quotes; sequential bootstrapper |
+| `credit` | `CreditCurve` (3 interpolation variants) with sequential and global bootstrappers; `SingleNameCDS` pricer |
+| `database` | SQLite connection management and per-domain table DDL/repositories |
+| `scripts` | DB initialisation entry point and seed-data generators |
+| `tests` | Pytest suite running against an isolated temp DB fixture |
+| `examples` | Jupyter notebooks demonstrating each package |

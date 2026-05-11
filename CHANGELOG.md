@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- `README.md`: expanded the intro to state project scope (rate-curve construction and single-name CDS pricing from scratch, no third-party pricing libraries) and added a **Capabilities** section enumerating schedule generation, zero-curve bootstrapping, credit-curve bootstrapping (sequential vs. global, three interpolation variables), CDS pricing/sensitivities, and the logging convention; added a per-notebook table under **Examples** and sharpened the **Packages** table to name the concrete classes/instruments in each package
+
 ## [0.7.1] - 2026-05-11
 
 ### Added
