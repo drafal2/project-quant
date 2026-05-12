@@ -24,6 +24,10 @@ examples/*.db
 .coverage
 htmlcov/
 
+# Locally generated cross-validation report tooling — not part of the published codebase
+validation/REPORT.html
+validation/render_html.py
+
 # IDE
 .vscode/
 .idea/
