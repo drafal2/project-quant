@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- `montecarlo/` package — Step 1 (random-number sampling) of the Monte Carlo engine that will price equity basket autocalls
+  - `montecarlo.Sampler` ABC with dimension-aware `next_block(n_paths, n_dimensions)` contract; concrete uniform samplers: `KnuthSampler` (subtractive `ran3`), `MRG32k3aSampler` (L'Ecuyer 1999, with `substream()` stub for the path-engine PR), `MersenneTwisterSampler` (MT19937), `HaltonSampler`, `SobolSampler` (gray-code with Joe-Kuo 2008 direction numbers up to 1024 dimensions, bundled in `_joe_kuo_data.py`)
+  - `montecarlo.NormalTransform` ABC + `make_normal_sampler` factory enforcing the QMC / inversion pairing rule (Box-Muller and CLT rejected when paired with low-discrepancy samplers); concrete transforms: `CLTTransform` (pedagogy only, emits `UserWarning`), `BoxMullerTransform`, `MoroTransform` (1995), `AcklamTransform` (2003), `WichuraAS241Transform` (1988, machine-precision tails)
+  - `montecarlo.diagnostics` — KS / chi-square / serial correlation / Warnock L2 discrepancy for uniforms, moments / KS-vs-`N(0,1)` / Anderson-Darling / tail-fraction comparison for normals, and end-to-end `integrate_gaussian_moment` and `bs_call_price_mc` smoke tests against closed-form benchmarks
+  - `montecarlo.plotting` — `scatter_2d`, `lag_scatter`, `projection_grid` (the canonical Halton-failure visual), `qq_normal`, `marginal_histogram`, `convergence_plot`
+  - `examples/06_random_number_sampling.ipynb` — PRNG and QMC tours, normal-transform accuracy table, factory pairing demo, and a PRNG vs QMC convergence study on a European call
+- `scipy>=1.14` runtime dependency (used as ground truth for inverse-normal accuracy tests, KS / Anderson-Darling p-values, and Black-Scholes closed-form in the integration smoke tests; not used in library hot paths)
+
 ## [0.7.2] - 2026-05-11
 
 ### Changed

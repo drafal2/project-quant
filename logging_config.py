@@ -16,6 +16,7 @@ _PACKAGE_LOGGERS = (
     "market_structures",
     "schedules",
     "credit",
+    "montecarlo",
     "scripts",
     "examples",
 )

@@ -1,0 +1,45 @@
+# montecarlo/
+
+Foundation for the Monte Carlo engine that will price equity basket autocalls. This package implements only the random-number sampling layer; simulation grid, variance reduction, Brownian Bridge, correlation, and path generation arrive in subsequent PRs.
+
+## Layout
+
+- **`sampler.py`** — `Sampler` ABC. The single non-negotiable contract is `next_block(n_paths, n_dimensions) -> np.ndarray` returning a `(n_paths, n_dimensions)` `float64` array with values strictly in `(0, 1)`. The class attribute `is_quasi: bool` flags low-discrepancy samplers.
+- **`uniform/`** — five concrete `Sampler` implementations. PRNGs: `KnuthSampler` (subtractive `ran3`), `MRG32k3aSampler` (L'Ecuyer 1999 combined MRG, production default for serial paths; `substream(index)` stub raises `NotImplementedError` until the path-engine PR), `MersenneTwisterSampler` (canonical MT19937 with vectorised tempering and a Python-loop refill). QMC: `HaltonSampler` (prime-base van der Corput with optional burn-in skip), `SobolSampler` (gray-code Sobol with Joe-Kuo (2008) direction numbers covering dimensions 1-1024, table in `_joe_kuo_data.py`).
+- **`normal/`** — `NormalTransform` ABC + five concrete transforms + `make_normal_sampler` factory. The factory enforces the **QMC / inversion pairing rule** (see Invariants below). Inversion family: `MoroTransform` (1995, ~3e-9 in the body, degrades in the deep tail), `AcklamTransform` (2003, ~1e-8 across the full range), `WichuraAS241Transform` (1988, machine precision throughout — the default for tail-sensitive products). Trigonometric: `BoxMullerTransform` (PRNG-only). Pedagogy-only: `CLTTransform` (sum of 12 uniforms − 6; issues `UserWarning` on construction and is rejected by the factory when paired with QMC).
+- **`diagnostics/`** — `uniform_tests.py` (KS, chi-square, serial correlation, Warnock L2 discrepancy, pairwise correlation grid), `normal_tests.py` (moments, KS vs `N(0, 1)`, Anderson-Darling, tail-fraction empirical vs theoretical), `integration.py` (`integrate_gaussian_moment` and `bs_call_price_mc` — end-to-end smoke tests against closed-form benchmarks).
+- **`plotting.py`** — `scatter_2d`, `lag_scatter`, `projection_grid` (the canonical Halton-failure visual), `qq_normal`, `marginal_histogram`, `convergence_plot`. Every function takes an optional `ax: matplotlib.axes.Axes` and returns it; library code never calls `plt.show()`.
+
+## Invariants
+
+- **QMC / inversion pairing rule** — `is_quasi=True` samplers (`SobolSampler`, `HaltonSampler`) must be paired with `qmc_safe=True` transforms (`MoroTransform`, `AcklamTransform`, `WichuraAS241Transform`). Box-Muller wraps two uniforms through `(cos 2πU, sin 2πU)` non-monotonically, which destroys low-discrepancy structure (Boyle, Broadie, Glasserman 1997). The CLT transform is also non-monotone and tail-truncated. `make_normal_sampler` raises `ValueError` on bad pairings — never bypass the factory.
+- **Open interval contract** — every concrete `Sampler.next_block` returns values strictly in `(0, 1)`. The inverse-cumulative transforms diverge at the endpoints, so any new sampler must respect this; the existing implementations do so by adding 0.5 ULP before normalisation, or by mapping the zero index of a QMC sequence to a non-zero offset.
+- **Dimension-aware block shape** — `next_block(n_paths, n_dimensions)` is the *only* sampling entry point. The shape carries the structural dimension that QMC needs; never reshape after the fact. For path engines this also means: pre-decide how many uniforms each path needs (e.g. `n_assets * n_steps` for a basket diffusion), then call `next_block` once per simulation block.
+- **Uniforms per normal** — `NormalTransform.uniforms_per_normal` defaults to 1 but is `12` for `CLTTransform`. `NormalSampler.next_block` reads this and asks the underlying sampler for `n_dimensions * uniforms_per_normal` columns. Any new transform that consumes more than one uniform per output must set this class attribute or `NormalSampler` will under-feed it.
+
+## Adding a new uniform sampler
+
+1. Subclass `Sampler` in a new module under `montecarlo/uniform/`. Set the class attribute `is_quasi` correctly (`False` for PRNGs, `True` for low-discrepancy sequences) — the factory uses this flag to enforce the pairing rule and there is no other signal.
+2. Implement `next_block`, `reset`, and the `state` property. `reset()` must be idempotent and restore the post-construction state exactly; consumers rely on this for reproducibility.
+3. Add the class to `montecarlo/uniform/__init__.py` and re-export it from `montecarlo/__init__.py`'s `__all__`.
+4. Add a parameterised test in `tests/test_montecarlo_uniform.py` (shape, range, reproducibility after reset). For PRNGs also add to the KS coverage; for QMC samplers add a discrepancy assertion.
+
+## Adding a new normal transform
+
+1. Subclass `NormalTransform` in a new module under `montecarlo/normal/`. Set `qmc_safe` correctly — `True` only if the transform is a monotone single-uniform-in / single-normal-out inverse-cumulative function. If it consumes more than one uniform per output, set `uniforms_per_normal` accordingly.
+2. Implement `transform(uniforms)`. Input shape is `(n_paths, n_dimensions * uniforms_per_normal)`; output shape is `(n_paths, n_dimensions)`. Operate vectorised; element-wise branches use `np.where`.
+3. Add the class to `montecarlo/normal/__init__.py` and re-export it from `montecarlo/__init__.py`'s `__all__`.
+4. Add an accuracy test in `tests/test_montecarlo_normal.py` against `scipy.special.ndtri` over a grid covering central and tail regions. Add a moments check via the `make_normal_sampler` factory.
+
+## Logging convention
+
+Every module in this package declares `logger = logging.getLogger(__name__)` and uses `%`-style lazy formatting. The factory (`montecarlo.normal.factory`) emits an INFO line per `NormalSampler` construction. Hot paths — the MT19937 refill and the Sobol direction-table build — log DEBUG, guarded by `logger.isEnabledFor(logging.DEBUG)`. New solvers and iterative diagnostics in this package should follow the same INFO-summary + guarded-DEBUG-per-iteration shape used by `credit/bootstrapper.py`.
+
+## Future hooks
+
+These are deliberately staged for subsequent PRs; their interfaces are stubbed or fixed here so adding them later does not churn the existing API:
+
+- **Antithetic variates** — a `Sampler` wrapper that produces both `U` and `1 - U`. Will raise on a quasi base, by the same rule as the Box-Muller / Sobol clash.
+- **Brownian Bridge** — chooses which QMC coordinate maps to which Brownian increment so that the first Sobol dimensions get the highest-variance time-step gaps. Path code will call `next_block(n_paths, n_steps)` and re-order columns; no change to `Sampler` is required.
+- **MRG32k3a substreams** — `MRG32k3aSampler.substream(index)` is the stub; the leap-ahead matrix exponentiation will land with the path engine.
+- **Correlated basket draws** — Cholesky / PCA layered on top of the normal sampler. PCA decomposition allocates the largest eigenvalues to the lowest Sobol dimensions, the same principle as Brownian Bridge.
