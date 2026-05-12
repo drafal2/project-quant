@@ -88,6 +88,40 @@ class MersenneTwisterSampler(Sampler):
         mt[_N - 1] = mt[_M - 1] ^ (y >> 1) ^ (_MATRIX_A if (y & 1) else 0)
         self._idx = 0
 
+    def next_int32_block(
+        self,
+        n: int,
+    ) -> np.ndarray:
+        """Draw ``n`` raw tempered 32-bit integers, matching ``ql.MersenneTwisterUniformRng::nextInt32``.
+
+        Parameters
+        ----------
+        n
+            Number of integers to draw.
+
+        Returns
+        -------
+        numpy.ndarray
+            ``uint32`` array of length ``n``. Useful when callers need the
+            raw tempered output — e.g. seeding randomStart offsets for the
+            Halton sampler in a manner compatible with QuantLib.
+        """
+        raw = np.empty(n, dtype=np.uint32)
+        pos = 0
+        while pos < n:
+            if self._idx >= _N:
+                self._refill()
+            take = min(_N - self._idx, n - pos)
+            raw[pos:pos + take] = self._mt[self._idx:self._idx + take]
+            self._idx += take
+            pos += take
+        y = raw
+        y = y ^ (y >> np.uint32(11))
+        y = y ^ ((y << np.uint32(7)) & np.uint32(0x9D2C_5680))
+        y = y ^ ((y << np.uint32(15)) & np.uint32(0xEFC6_0000))
+        y = y ^ (y >> np.uint32(18))
+        return y
+
     def next_block(
         self,
         n_paths: int,
@@ -109,20 +143,7 @@ class MersenneTwisterSampler(Sampler):
             strictly in ``(0, 1)``.
         """
         n_total = n_paths * n_dimensions
-        raw = np.empty(n_total, dtype=np.uint32)
-        pos = 0
-        while pos < n_total:
-            if self._idx >= _N:
-                self._refill()
-            take = min(_N - self._idx, n_total - pos)
-            raw[pos:pos + take] = self._mt[self._idx:self._idx + take]
-            self._idx += take
-            pos += take
-        y = raw
-        y = y ^ (y >> np.uint32(11))
-        y = y ^ ((y << np.uint32(7)) & np.uint32(0x9D2C_5680))
-        y = y ^ ((y << np.uint32(15)) & np.uint32(0xEFC6_0000))
-        y = y ^ (y >> np.uint32(18))
+        y = self.next_int32_block(n_total)
         out = (y.astype(np.float64) + 0.5) * _FAC
         return out.reshape(n_paths, n_dimensions)
 

@@ -17,6 +17,8 @@ Always use `.venv/Scripts/python` instead of `python` to ensure the venv interpr
 .venv/Scripts/python -m pytest tests/test_schedule.py::test_function_name -q
 ```
 
+The default test run targets `tests/` only. The `validation/` directory holds cross-checks against external references (e.g. QuantLib) and is **not** part of the default suite — it requires optional dependencies and is run separately. See `validation/README.md` for the invocation.
+
 ## Git
 
 All new features and bug fixes must be developed on a dedicated branch, never directly on `master`. Always start from an up-to-date master:
@@ -151,6 +153,7 @@ A Python quantitative finance toolkit. Each domain lives in its own library pack
 | `montecarlo/` | Random-number sampling: PRNGs, low-discrepancy sequences, `U -> N` transforms, diagnostics | [`montecarlo/CLAUDE.md`](montecarlo/CLAUDE.md) |
 | `tests/` | Pytest suite with isolated DB fixture | [`tests/CLAUDE.md`](tests/CLAUDE.md) |
 | `examples/` | Jupyter notebooks demonstrating each package | [`examples/CLAUDE.md`](examples/CLAUDE.md) |
+| `validation/` | Cross-checks against external references (e.g. QuantLib); run separately, not part of default `tests/` | [`validation/README.md`](validation/README.md) |
 
 ### Cross-package invariants
 

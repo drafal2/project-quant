@@ -19,6 +19,7 @@ import logging
 import numpy as np
 
 from ..sampler import Sampler
+from .mersenne import MersenneTwisterSampler
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,8 @@ class HaltonSampler(Sampler):
         self,
         max_dimensions: int = 64,
         burn_in: int = 1,
+        seed: int = 0,
+        random_start: bool = False,
     ) -> None:
         """Initialise the Halton sampler.
 
@@ -115,7 +118,23 @@ class HaltonSampler(Sampler):
         burn_in
             Number of initial points to skip when the sequence is reset. The
             default of ``1`` skips the all-zero point at index zero so that
-            every returned value lies strictly in ``(0, 1)``.
+            every returned value lies strictly in ``(0, 1)``. Ignored when
+            ``random_start=True`` because the per-dimension start indices
+            are then drawn from a Mersenne Twister.
+        seed
+            Mersenne Twister seed used when ``random_start=True``; ignored
+            otherwise. Unlike QuantLib's ``ql.HaltonRsg``, ``seed = 0`` is
+            **not** remapped to a clock-based random seed — it is used
+            literally, yielding a deterministic state. Pass a non-zero seed
+            to obtain bit-exact agreement with
+            ``ql.HaltonRsg(d, seed, randomStart=True)``.
+        random_start
+            When ``True``, draw a different van der Corput starting index for
+            each dimension by pulling ``max_dimensions`` raw 32-bit MT19937
+            integers (seeded with ``seed``). This matches QuantLib's
+            ``randomStart=True`` Halton mode bit-for-bit; the resulting
+            sequence is still deterministic given the seed but has no shared
+            origin across dimensions.
 
         Raises
         ------
@@ -129,11 +148,26 @@ class HaltonSampler(Sampler):
         self._primes = _first_primes(max_dimensions)
         self.dimensions = max_dimensions
         self._burn_in = burn_in
+        self._seed = int(seed)
+        self._random_start = bool(random_start)
+        if self._random_start:
+            mt = MersenneTwisterSampler(seed=self._seed)
+            self._start_offsets = mt.next_int32_block(max_dimensions).astype(np.int64)
+        else:
+            self._start_offsets = np.zeros(max_dimensions, dtype=np.int64)
         self.reset()
 
     def reset(self) -> None:
-        """Rewind the sequence to the start of the burn-in region."""
-        self._index = self._burn_in
+        """Rewind the sequence counter to its post-construction position.
+
+        For the deterministic mode (``random_start=False``) this rewinds to
+        ``self._burn_in``. For ``random_start=True`` the counter rewinds to
+        zero, since QuantLib's Halton begins by pre-incrementing the counter
+        on every ``nextSequence`` call (so the first emitted point is at
+        offset ``1`` in each dimension's van der Corput sequence, added to
+        the per-dimension random offset).
+        """
+        self._counter = 0 if self._random_start else self._burn_in
 
     def next_block(
         self,
@@ -166,11 +200,15 @@ class HaltonSampler(Sampler):
                 f"requested {n_dimensions} dimensions but sampler was built "
                 f"with max_dimensions={self.dimensions}"
             )
-        indices = np.arange(self._index, self._index + n_paths, dtype=np.int64)
+        if self._random_start:
+            base = np.arange(self._counter + 1, self._counter + 1 + n_paths, dtype=np.int64)
+        else:
+            base = np.arange(self._counter, self._counter + n_paths, dtype=np.int64)
         out = np.empty((n_paths, n_dimensions), dtype=np.float64)
         for d in range(n_dimensions):
+            indices = base + self._start_offsets[d]
             out[:, d] = _van_der_corput(indices, self._primes[d])
-        self._index += n_paths
+        self._counter += n_paths
         return out
 
     @property
@@ -180,10 +218,13 @@ class HaltonSampler(Sampler):
         Returns
         -------
         dict
-            Keys: ``index``, ``burn_in``, ``max_dimensions``.
+            Keys: ``counter``, ``burn_in``, ``max_dimensions``, ``seed``,
+            ``random_start``.
         """
         return {
-            "index": self._index,
+            "counter": self._counter,
             "burn_in": self._burn_in,
             "max_dimensions": self.dimensions,
+            "seed": self._seed,
+            "random_start": self._random_start,
         }

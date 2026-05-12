@@ -31,6 +31,7 @@ from .sampler import Sampler
 from .uniform import (
     HaltonSampler,
     KnuthSampler,
+    LecuyerLCG1988Sampler,
     MersenneTwisterSampler,
     MRG32k3aSampler,
     SobolSampler,
@@ -42,6 +43,7 @@ __all__ = [
     "CLTTransform",
     "HaltonSampler",
     "KnuthSampler",
+    "LecuyerLCG1988Sampler",
     "MRG32k3aSampler",
     "MersenneTwisterSampler",
     "MoroTransform",

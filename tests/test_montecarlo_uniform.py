@@ -8,6 +8,7 @@ import pytest
 from montecarlo import (
     HaltonSampler,
     KnuthSampler,
+    LecuyerLCG1988Sampler,
     MRG32k3aSampler,
     MersenneTwisterSampler,
     SobolSampler,
@@ -17,6 +18,7 @@ from montecarlo.diagnostics import ks_uniform, l2_discrepancy
 
 _PRNG_FACTORIES = [
     pytest.param(lambda: KnuthSampler(seed=42), id="knuth"),
+    pytest.param(lambda: LecuyerLCG1988Sampler(seed=42), id="lecuyer_lcg_1988"),
     pytest.param(lambda: MRG32k3aSampler(seed=42), id="mrg32k3a"),
     pytest.param(lambda: MersenneTwisterSampler(seed=42), id="mt19937"),
 ]
