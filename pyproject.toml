@@ -16,7 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest==9.0.3", "nbstripout>=0.9.1"]
-validation = ["QuantLib>=1.42"]
+validation = ["QuantLib>=1.42", "markdown>=3.7"]
 
 [tool.setuptools.packages.find]
 where = ["."]
