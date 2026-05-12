@@ -32,6 +32,57 @@ The point at integer index 0 is the origin and is skipped (it would yield zero
 in every coordinate, breaking the strict open-interval contract of
 :meth:`Sampler.next_block`). The returned point at row ``k`` corresponds to
 Sobol index ``index_at_construction + k + 1``.
+
+Direction-integer set: which one we ship and what else exists
+-------------------------------------------------------------
+
+This module ships **one** direction-integer set: the **Joe-Kuo D6** table from
+``new-joe-kuo-6.21201`` (Joe & Kuo, 2008). It is bit-for-bit equivalent to
+QuantLib's ``ql.SobolRsg.JoeKuoD6`` direction set; see
+``validation/quantlib_xref/test_joe_kuo_data.py`` for the parity proof. Several
+alternative direction-integer sets exist in the QMC literature and are exposed
+by other libraries (notably QuantLib via the ``ql.SobolRsg`` constructor flag);
+**none of them are implemented here.** This block documents what is on offer
+elsewhere and why we picked D6 — should a future caller need a different set,
+this is the place to start.
+
+The "D" parameter in the Joe-Kuo naming refers to the
+*dimension-stratification depth* against which the construction is optimised:
+larger ``D`` means the projection onto more coordinates simultaneously is
+well-equidistributed (lower ``t``-value), at the cost of fewer total
+dimensions supported.
+
+==========================  ======================================  ============
+QuantLib constant            Source                                  Status here
+==========================  ======================================  ============
+``Unit``                    trivial (all-ones direction integers)   not shipped
+``Jaeckel``                 Jäckel (2002), *MC Methods in Finance*  not shipped
+``SobolLevitan``            Levitan (1968), corrected by Joe-Kuo    not shipped
+``SobolLevitanLemieux``     Lemieux modification of the above       not shipped
+``JoeKuoD5``                Joe & Kuo (2003), ~1 111 dimensions     not shipped
+**``JoeKuoD6``**            **Joe & Kuo (2008), 21 201 dimensions**  **shipped**
+``JoeKuoD7``                Joe & Kuo (2010), stricter ``t``-value  not shipped
+``Kuo``, ``Kuo2``, ``Kuo3`` F. Kuo (solo), alternative variants     not shipped
+==========================  ======================================  ============
+
+Why D6 is the right default for this library:
+
+- Enough dimensions for any practical equity-basket payoff
+  (a monthly autocall on 5 underlyings over 5 years needs ``5 × 60 = 300``
+  dimensions; even daily over 5 years is only ``5 × 1260 = 6 300``, well below
+  D6's 21 201).
+- ``t``-value remains small in low and mid dimensions, so 2D and 3D
+  projections — the regime where Sobol's *Brownian-bridge* / *PCA*
+  re-ordering allocates the highest-variance time steps — are well
+  equidistributed.
+- This is the set used by NAG, Premia, and most finance papers from ~2010
+  onward, so cross-checking against published benchmarks is straightforward.
+
+Adding another set would mean: vendoring its primitive-polynomial + initial
+direction-integer table in a new ``_<name>_data.py`` module, plumbing a
+``direction_set`` constructor parameter through ``SobolSampler``, and adding a
+matching cross-validation test. Nothing in the gray-code recurrence
+(``_build_direction_table`` below) is set-specific — only the input table is.
 """
 
 from __future__ import annotations
