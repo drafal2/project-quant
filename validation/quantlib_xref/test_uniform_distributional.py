@@ -17,7 +17,7 @@ seed:
 - **Sobol** — already bit-exact (mod 2^-33 open-interval ULP shift) against
   ``ql.SobolRsg(JoeKuoD6)``; covered separately in ``test_joe_kuo_data.py``.
 
-`MRG32k3aSampler` (L'Ecuyer 1999 MRG) has **no QuantLib counterpart**;
+`LecuyerMRG32k3a1999Sampler` (L'Ecuyer 1999 MRG) has **no QuantLib counterpart**;
 QL's `LecuyerUniformRng` is the older 1988 LCG and is matched by the new
 `LecuyerLCG1988Sampler` instead. We retain a distributional check against
 QL's older sampler as a sanity baseline that the two implementations agree
@@ -38,7 +38,7 @@ from scipy.stats import kstest
 
 from montecarlo.uniform.halton import HaltonSampler
 from montecarlo.uniform.knuth import KnuthSampler
-from montecarlo.uniform.lecuyer import MRG32k3aSampler
+from montecarlo.uniform.lecuyer import LecuyerMRG32k3a1999Sampler
 from montecarlo.uniform.lecuyer_lcg import LecuyerLCG1988Sampler
 from montecarlo.uniform.mersenne import MersenneTwisterSampler
 
@@ -159,7 +159,7 @@ def test_halton_deterministic_bit_exact_match(seed):
 
 
 def test_mrg32k3a_distributional_against_ql_lecuyer_1988():
-    """``MRG32k3aSampler`` (1999) is distributionally indistinguishable from QL's 1988 LCG.
+    """``LecuyerMRG32k3a1999Sampler`` (1999) is distributionally indistinguishable from QL's 1988 LCG.
 
     These are **different algorithms** (a multiple-recursive generator vs
     a combined LCG with shuffle), both due to L'Ecuyer; no bit-match is
@@ -169,7 +169,7 @@ def test_mrg32k3a_distributional_against_ql_lecuyer_1988():
     as statistically faithful as QL's reference implementation.
     """
     n = 200_000
-    ours = MRG32k3aSampler(seed=42).next_block(n, 1).ravel()
+    ours = LecuyerMRG32k3a1999Sampler(seed=42).next_block(n, 1).ravel()
     theirs = _ql_prng_draws(ql.LecuyerUniformRng(42), n)
     p_ours = float(kstest(ours, "uniform").pvalue)
     p_theirs = float(kstest(theirs, "uniform").pvalue)

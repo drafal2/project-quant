@@ -9,7 +9,7 @@ from montecarlo import (
     HaltonSampler,
     KnuthSampler,
     LecuyerLCG1988Sampler,
-    MRG32k3aSampler,
+    LecuyerMRG32k3a1999Sampler,
     MersenneTwisterSampler,
     SobolSampler,
 )
@@ -19,7 +19,7 @@ from montecarlo.diagnostics import ks_uniform, l2_discrepancy
 _PRNG_FACTORIES = [
     pytest.param(lambda: KnuthSampler(seed=42), id="knuth"),
     pytest.param(lambda: LecuyerLCG1988Sampler(seed=42), id="lecuyer_lcg_1988"),
-    pytest.param(lambda: MRG32k3aSampler(seed=42), id="mrg32k3a"),
+    pytest.param(lambda: LecuyerMRG32k3a1999Sampler(seed=42), id="mrg32k3a"),
     pytest.param(lambda: MersenneTwisterSampler(seed=42), id="mt19937"),
 ]
 
@@ -68,7 +68,7 @@ def test_sobol_gray_code_reference_values():
 
 def test_sobol_beats_prng_on_discrepancy():
     sobol = SobolSampler(max_dimensions=4)
-    prng = MRG32k3aSampler(seed=7)
+    prng = LecuyerMRG32k3a1999Sampler(seed=7)
     n = 1024
     d_sobol = l2_discrepancy(sobol.next_block(n, 4))
     d_prng = l2_discrepancy(prng.next_block(n, 4))
@@ -106,6 +106,6 @@ def test_sobol_rejects_oversize_construction():
 
 
 def test_mrg32k3a_substream_stub():
-    s = MRG32k3aSampler(seed=1)
+    s = LecuyerMRG32k3a1999Sampler(seed=1)
     with pytest.raises(NotImplementedError):
         s.substream(3)

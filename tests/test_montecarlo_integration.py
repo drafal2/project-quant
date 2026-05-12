@@ -7,7 +7,7 @@ import pytest
 from montecarlo import (
     AcklamTransform,
     BoxMullerTransform,
-    MRG32k3aSampler,
+    LecuyerMRG32k3a1999Sampler,
     MersenneTwisterSampler,
     MoroTransform,
     SobolSampler,
@@ -26,10 +26,10 @@ _BS_PARAMS = dict(spot=100.0, strike=100.0, rate=0.05, sigma=0.2, maturity=1.0)
 @pytest.mark.parametrize(
     "sampler_factory, transform, label",
     [
-        (lambda: MRG32k3aSampler(seed=1), MoroTransform(), "mrg+moro"),
-        (lambda: MRG32k3aSampler(seed=1), AcklamTransform(), "mrg+acklam"),
-        (lambda: MRG32k3aSampler(seed=1), WichuraAS241Transform(), "mrg+wichura"),
-        (lambda: MRG32k3aSampler(seed=1), BoxMullerTransform(), "mrg+box_muller"),
+        (lambda: LecuyerMRG32k3a1999Sampler(seed=1), MoroTransform(), "mrg+moro"),
+        (lambda: LecuyerMRG32k3a1999Sampler(seed=1), AcklamTransform(), "mrg+acklam"),
+        (lambda: LecuyerMRG32k3a1999Sampler(seed=1), WichuraAS241Transform(), "mrg+wichura"),
+        (lambda: LecuyerMRG32k3a1999Sampler(seed=1), BoxMullerTransform(), "mrg+box_muller"),
         (lambda: MersenneTwisterSampler(seed=1), MoroTransform(), "mt+moro"),
         (lambda: SobolSampler(max_dimensions=2, skip=1024), MoroTransform(), "sobol+moro"),
         (lambda: SobolSampler(max_dimensions=2, skip=1024), AcklamTransform(), "sobol+acklam"),
@@ -48,7 +48,7 @@ def test_bs_call_within_three_std_errors(sampler_factory, transform, label):
 
 
 def test_gaussian_second_moment():
-    ns = make_normal_sampler(MRG32k3aSampler(seed=99), AcklamTransform())
+    ns = make_normal_sampler(LecuyerMRG32k3a1999Sampler(seed=99), AcklamTransform())
     res = integrate_gaussian_moment(ns, moment=2, n_paths=200_000)
     assert abs(res.error) < 4.0 * res.std_error
 

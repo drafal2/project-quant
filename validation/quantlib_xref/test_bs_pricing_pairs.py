@@ -44,7 +44,7 @@ from montecarlo.normal.moro import MoroTransform
 from montecarlo.normal.wichura import WichuraAS241Transform
 from montecarlo.uniform.halton import HaltonSampler
 from montecarlo.uniform.knuth import KnuthSampler
-from montecarlo.uniform.lecuyer import MRG32k3aSampler
+from montecarlo.uniform.lecuyer import LecuyerMRG32k3a1999Sampler
 from montecarlo.uniform.mersenne import MersenneTwisterSampler
 from montecarlo.uniform.sobol import SobolSampler
 
@@ -91,7 +91,7 @@ def _build_pair_matrix() -> list[_Pair]:
     prng_factories = [
         ("Knuth", lambda: KnuthSampler(seed=SEED), False),
         ("MT19937", lambda: MersenneTwisterSampler(seed=SEED), False),
-        ("LEcuyer", lambda: MRG32k3aSampler(seed=SEED), False),
+        ("LEcuyer", lambda: LecuyerMRG32k3a1999Sampler(seed=SEED), False),
     ]
     qmc_factories = [
         ("Halton", lambda: HaltonSampler(max_dimensions=16), True),

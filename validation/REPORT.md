@@ -17,7 +17,7 @@ Reference versions used when these numbers were captured: **QuantLib 1.42.1**, *
 | Mersenne Twister sequence | `ql.MersenneTwisterUniformRng` | **bit-exact** (any non-zero seed) | same MT19937 algorithm, same `(int32+0.5)/2^32` conversion |
 | Knuth RANARRAY sequence | `ql.KnuthUniformRng` | **bit-exact** (any non-zero seed) | `KnuthSampler` is a faithful port of QL's `ranf_start`/`ranf_array` |
 | L'Ecuyer 1988 combined-LCG sequence | `ql.LecuyerUniformRng` | **bit-exact** (any non-zero seed) | new `LecuyerLCG1988Sampler` ports the QL algorithm directly |
-| L'Ecuyer 1999 MRG32k3a sequence | (no QL counterpart) | distributional only against `ql.LecuyerUniformRng` | **different algorithm** — `MRG32k3aSampler` is the 1999 paper, retained as the production sampler (period ~2^191 vs ~2^61 for the 1988 LCG) |
+| L'Ecuyer 1999 MRG32k3a sequence | (no QL counterpart) | distributional only against `ql.LecuyerUniformRng` | **different algorithm** — `LecuyerMRG32k3a1999Sampler` is the 1999 paper, retained as the production sampler (period ~2^191 vs ~2^61 for the 1988 LCG) |
 | BS call, all 21 pairs | `ql.BlackCalculator` analytic | within 5×SE (PRNG) / 0.05 abs (QMC) | MC noise / QMC bias-variance trade-off |
 
 Every entry above is asserted by a test under `validation/quantlib_xref/`.
@@ -88,9 +88,9 @@ After the QL-parity port, three of our four PRNGs reproduce QuantLib's sequence 
 | `MersenneTwisterSampler` | MT19937 (Matsumoto-Nishimura 1998) | bit-exact vs `ql.MersenneTwisterUniformRng`, ≥500 draws, multiple seeds |
 | `KnuthSampler` | Knuth RANARRAY lagged-Fibonacci (KK=100, LL=37, TT=70) | bit-exact vs `ql.KnuthUniformRng`, ≥500 draws, multiple seeds |
 | `LecuyerLCG1988Sampler` | L'Ecuyer (1988) combined-LCG + Bays-Durham shuffle (Numerical Recipes `ran2`) | bit-exact vs `ql.LecuyerUniformRng`, ≥500 draws, multiple seeds |
-| `MRG32k3aSampler` | **L'Ecuyer (1999) MRG32k3a** | distributional only — QL has no MRG32k3a; we keep this as the production sampler because its period (~2^191) is ~2^130× longer than the 1988 LCG (~2^61) |
+| `LecuyerMRG32k3a1999Sampler` | **L'Ecuyer (1999) MRG32k3a** | distributional only — QL has no MRG32k3a; we keep this as the production sampler because its period (~2^191) is ~2^130× longer than the 1988 LCG (~2^61) |
 
-The pairing rule for L'Ecuyer is: when you want a sequence reproducible across QuantLib and project-quant, use `LecuyerLCG1988Sampler`; when you want a generator that can survive a real autocall Monte Carlo run, use `MRG32k3aSampler` (and accept that there is no QL bit-equivalent to compare against). The validation suite enforces both:
+The pairing rule for L'Ecuyer is: when you want a sequence reproducible across QuantLib and project-quant, use `LecuyerLCG1988Sampler`; when you want a generator that can survive a real autocall Monte Carlo run, use `LecuyerMRG32k3a1999Sampler` (and accept that there is no QL bit-equivalent to compare against). The validation suite enforces both:
 ``test_lecuyer_lcg_1988_bit_exact_match`` (bit-exact contract) and
 ``test_mrg32k3a_distributional_against_ql_lecuyer_1988`` (statistical baseline).
 

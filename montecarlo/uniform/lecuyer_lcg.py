@@ -7,7 +7,7 @@ construction is also known as ``ran2`` in *Numerical Recipes in C*, 2nd edition.
 
 This sampler is **bit-for-bit compatible with**
 :class:`QuantLib.LecuyerUniformRng`. It exists as a peer to the project's own
-:class:`~montecarlo.uniform.lecuyer.MRG32k3aSampler` (which implements the
+:class:`~montecarlo.uniform.lecuyer.LecuyerMRG32k3a1999Sampler` (which implements the
 later 1999 paper) so that cross-validation against QuantLib is possible
 without changing the production-grade L'Ecuyer.
 
@@ -21,7 +21,7 @@ Algorithm constants (from QL's ``lecuyeruniformrng.cpp``):
 
 Period ``~ 2.3 × 10^18`` (product of the two LCG periods, minus structure).
 This is roughly ``2^61``, far shorter than MRG32k3a's ``2^191``. For the
-basket autocall path engine the project uses ``MRG32k3aSampler``;
+basket autocall path engine the project uses ``LecuyerMRG32k3a1999Sampler``;
 ``LecuyerLCG1988Sampler`` is the right choice only for QL cross-validation
 or pedagogical contrast.
 
@@ -74,7 +74,7 @@ class LecuyerLCG1988Sampler(Sampler):
     Use when
         Cross-validation against QuantLib is required, or as a contrast
         point in the demo notebook. For production path generation use
-        :class:`~montecarlo.uniform.lecuyer.MRG32k3aSampler` instead.
+        :class:`~montecarlo.uniform.lecuyer.LecuyerMRG32k3a1999Sampler` instead.
     """
 
     is_quasi = False

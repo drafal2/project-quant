@@ -12,7 +12,7 @@ class Sampler(ABC):
 
     The contract is *dimension-aware* on purpose: every call to ``next_block``
     must specify how many independent uniforms each path needs. Pseudo-random
-    samplers (``KnuthSampler``, ``MRG32k3aSampler``, ``MersenneTwisterSampler``)
+    samplers (``KnuthSampler``, ``LecuyerMRG32k3a1999Sampler``, ``MersenneTwisterSampler``)
     treat the dimension argument as a reshape; low-discrepancy samplers
     (``HaltonSampler``, ``SobolSampler``) treat it as the structural dimension
     of the Sobol/Halton point and *cannot* be made dimension-agnostic without

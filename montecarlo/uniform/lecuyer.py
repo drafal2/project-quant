@@ -28,7 +28,7 @@ _A23 = 1_370_589
 _NORM = 1.0 / (_M1 + 1)
 
 
-class MRG32k3aSampler(Sampler):
+class LecuyerMRG32k3a1999Sampler(Sampler):
     """L'Ecuyer's MRG32k3a; period :math:`\\approx 2^{191}`.
 
     Notes
@@ -76,7 +76,7 @@ class MRG32k3aSampler(Sampler):
     def substream(
         self,
         index: int,
-    ) -> "MRG32k3aSampler":
+    ) -> "LecuyerMRG32k3a1999Sampler":
         """Return an independent stream positioned at substream ``index``.
 
         Reserved for the path engine in a later PR. The interface is fixed
@@ -91,8 +91,8 @@ class MRG32k3aSampler(Sampler):
 
         Returns
         -------
-        MRG32k3aSampler
-            An MRG32k3aSampler positioned ``index * 2**76`` steps ahead.
+        LecuyerMRG32k3a1999Sampler
+            An LecuyerMRG32k3a1999Sampler positioned ``index * 2**76`` steps ahead.
 
         Raises
         ------

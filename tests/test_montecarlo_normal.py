@@ -13,7 +13,7 @@ from montecarlo import (
     BoxMullerTransform,
     CLTTransform,
     HaltonSampler,
-    MRG32k3aSampler,
+    LecuyerMRG32k3a1999Sampler,
     MoroTransform,
     SobolSampler,
     WichuraAS241Transform,
@@ -62,7 +62,7 @@ def test_inverse_cdf_accuracy_deep_tail(transform, max_tail_err):
 
 @pytest.mark.parametrize("transform", _ALL_TRANSFORMS)
 def test_normal_moments_match_via_prng(transform):
-    sampler = MRG32k3aSampler(seed=13)
+    sampler = LecuyerMRG32k3a1999Sampler(seed=13)
     ns = make_normal_sampler(sampler, transform)
     z = ns.next_block(200_000, 1).ravel()
     assert abs(z.mean()) < 0.02
