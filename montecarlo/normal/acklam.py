@@ -1,5 +1,12 @@
 """Acklam (2003) rational approximation of the inverse standard normal CDF.
 
+Abbreviations used in this module:
+
+- **CDF** — Cumulative Distribution Function;
+  ``Φ⁻¹`` is the inverse of the standard-normal CDF.
+- **QMC-safe** — see ``moro.py`` for the longer definition. Monotone and
+  one-uniform-in / one-normal-out, so safe to pair with Sobol / Halton.
+
 Implements the algorithm published by Peter John Acklam at
 https://web.archive.org/web/20151030215612/home.online.no/~pjacklam/notes/invnorm/
 using degree-5 rational polynomials in two regions: a central region for

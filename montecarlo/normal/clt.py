@@ -1,5 +1,17 @@
 """Central-limit-theorem normal transform: sum of 12 uniforms minus 6.
 
+Abbreviations used in this module:
+
+- **CLT** — Central Limit Theorem. The sum of a large number of
+  independent identically-distributed finite-variance random variables
+  is approximately normal after centring and rescaling. Here we sum 12
+  uniforms, which has mean 6 and variance 1, so subtracting 6 gives an
+  approximately ``N(0, 1)`` draw.
+- **QMC** — Quasi-Monte Carlo (see ``montecarlo/uniform/sobol.py``).
+  CLT is non-monotonic in each component uniform and therefore destroys
+  the low-discrepancy structure of a QMC sampler — it is rejected by
+  the factory in that pairing.
+
 Included for pedagogical contrast. The sum :math:`\\sum_{i=1}^{12} U_i - 6` has
 mean zero and variance one but is hard-bounded in ``[-6, +6]``, so the tails
 beyond :math:`\\pm 6\\sigma` are *exactly* missing — not merely under-sampled.

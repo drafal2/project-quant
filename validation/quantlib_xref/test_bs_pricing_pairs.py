@@ -44,7 +44,7 @@ from montecarlo.normal.moro import MoroTransform
 from montecarlo.normal.wichura import WichuraAS241Transform
 from montecarlo.uniform.halton import HaltonSampler
 from montecarlo.uniform.knuth import KnuthSampler
-from montecarlo.uniform.lecuyer import LecuyerMRG32k3a1999Sampler
+from montecarlo.uniform.lecuyer_mrg import LecuyerMRG32k3a1999Sampler
 from montecarlo.uniform.mersenne import MersenneTwisterSampler
 from montecarlo.uniform.sobol import SobolSampler
 

@@ -38,7 +38,7 @@ from scipy.stats import kstest
 
 from montecarlo.uniform.halton import HaltonSampler
 from montecarlo.uniform.knuth import KnuthSampler
-from montecarlo.uniform.lecuyer import LecuyerMRG32k3a1999Sampler
+from montecarlo.uniform.lecuyer_mrg import LecuyerMRG32k3a1999Sampler
 from montecarlo.uniform.lecuyer_lcg import LecuyerLCG1988Sampler
 from montecarlo.uniform.mersenne import MersenneTwisterSampler
 

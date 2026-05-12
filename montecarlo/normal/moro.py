@@ -1,5 +1,14 @@
 """Moro (1995) rational approximation of the inverse standard normal CDF.
 
+Abbreviations used in this module:
+
+- **CDF** — Cumulative Distribution Function;
+  ``Φ⁻¹`` is the inverse of the standard-normal CDF.
+- **QMC-safe** — a normal transform is *QMC-safe* if it is monotone and
+  consumes exactly one uniform per output normal, so that a low-discrepancy
+  uniform sampler retains its low-discrepancy structure through the
+  transform. See ``montecarlo/CLAUDE.md`` for the full pairing rule.
+
 The approximation uses two polynomials joined at :math:`v = 0.92` after
 folding to the upper half. For the central region a rational polynomial of
 degree 4 in :math:`(v - 0.5)^2` is applied; for the tail a polynomial of

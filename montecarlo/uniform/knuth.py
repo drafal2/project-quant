@@ -1,5 +1,26 @@
 """Knuth's RANARRAY lagged-Fibonacci generator in IEEE doubles.
 
+Abbreviations used in this module:
+
+- **PRNG** — Pseudo-Random Number Generator.
+- **RANARRAY** — Knuth's batched random-array procedure (``ran_array`` in
+  the integer version, ``ranf_array`` in the floating-point version);
+  generates a full block of output values from the current state in one
+  pass rather than one value at a time.
+- **Lagged-Fibonacci generator** — a recurrence of the form
+  ``X_n = X_{n-j} ⊕ X_{n-k} (mod m)`` for two lags ``j < k`` and some
+  binary operation ``⊕`` (here: floating-point subtraction modulo 1).
+  The state is the trailing ``k`` outputs.
+- **KK / LL / TT** — Knuth's notation: ``KK = 100`` is the long lag (size
+  of the persistent state ring), ``LL = 37`` is the short lag, ``TT = 70``
+  is the number of "squaring" iterations applied during seed expansion
+  (a longer-than-strictly-necessary warm-up that breaks short-range
+  correlations from the linear seed-fanout step).
+- **QUALITY** — Knuth's term for the size of the regenerated output buffer
+  (``1009`` here); only the first ``KK`` values are emitted, the rest are
+  discarded. This *quality trick* (1009 / 100 ≈ 10× over-generation)
+  empirically improves equidistribution over consuming the full buffer.
+
 Implements Knuth's *ran_array* / *ranf_array* algorithm from
 *The Art of Computer Programming*, Volume 2, Section 3.6 (the floating-point
 variant of his lagged-Fibonacci subtractive generator). The state is a

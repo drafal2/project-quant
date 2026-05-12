@@ -1,5 +1,21 @@
 """Wichura AS241 rational approximation of the inverse standard normal CDF.
 
+Abbreviations used in this module:
+
+- **CDF** — Cumulative Distribution Function. For the standard normal,
+  ``Φ(z) = P(Z ≤ z)``; its inverse ``Φ⁻¹(u)`` is the quantile function
+  that maps a uniform input ``u ∈ (0, 1)`` to the corresponding
+  ``N(0, 1)`` quantile.
+- **AS 241** — *Applied Statistics Algorithm 241*. The journal
+  *Applied Statistics* (Series C of the *Journal of the Royal Statistical
+  Society*) ran a numbered "AS" series of named, peer-reviewed numerical
+  algorithms; AS 241 is Wichura's 1988 contribution implementing
+  high-precision ``Φ⁻¹``. The "AS" is the series prefix, not an acronym.
+- **Horner evaluation** — a numerically stable way to evaluate a
+  polynomial ``a_0 + a_1·x + ... + a_n·x^n`` as nested multiplications
+  ``((... (a_n · x + a_{n-1}) · x + ...) · x + a_0)``; used in all three
+  regions to minimise rounding error.
+
 Implements Algorithm AS 241 (Wichura, 1988, *Applied Statistics* 37, 477-484),
 the algorithm used by R's ``qnorm``. Three regions are stitched together:
 

@@ -1,5 +1,28 @@
 """Sobol low-discrepancy sequence with Joe-Kuo (2008) direction numbers.
 
+Abbreviations used in this module:
+
+- **QMC** — Quasi-Monte Carlo. A class of deterministic point sets
+  (Sobol, Halton, lattice rules, ...) designed to fill the unit hypercube
+  more uniformly than independent random samples — buying a faster
+  convergence rate (``~ 1/N`` for smooth integrands, vs ``1/√N`` for any
+  PRNG) at the cost of losing the standard-error CI.
+- **Star discrepancy** — the supremum over axis-aligned anchored boxes of
+  ``|empirical_measure(box) − Lebesgue(box)|``; the canonical quality
+  measure for QMC point sets. Sobol attains the lowest known asymptotic
+  star discrepancy in arbitrary dimension.
+- **Direction numbers** — the per-dimension binary expansion of the
+  Sobol point coordinate at each bit position; chosen to satisfy the
+  ``(t, m, s)``-net property for the underlying primitive polynomial.
+  The Joe-Kuo (2008) table improves the choice in high dimensions.
+- **Gray code** — a binary encoding where consecutive integers differ in
+  exactly one bit. Sobol's gray-code recurrence updates only one
+  direction-number column per step, making sequential generation cheap.
+- **van der Corput sequence** — the 1D Sobol sequence in base 2: write
+  ``n`` in binary, reverse the digits, and interpret as a fraction below
+  the binary point. Higher Sobol dimensions are van der Corput-like
+  sequences over different primitive polynomials.
+
 Generates the gray-code Sobol sequence in 32-bit integer arithmetic. Direction
 numbers for dimensions 2 through 1024 come from the table compiled in
 :mod:`_joe_kuo_data`; dimension 1 is handled inline as the trivial van der

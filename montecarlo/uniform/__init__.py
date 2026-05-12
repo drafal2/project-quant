@@ -2,8 +2,8 @@
 
 from .halton import HaltonSampler
 from .knuth import KnuthSampler
-from .lecuyer import LecuyerMRG32k3a1999Sampler
 from .lecuyer_lcg import LecuyerLCG1988Sampler
+from .lecuyer_mrg import LecuyerMRG32k3a1999Sampler
 from .mersenne import MersenneTwisterSampler
 from .sobol import SobolSampler
 

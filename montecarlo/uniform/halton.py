@@ -1,5 +1,14 @@
 """Halton low-discrepancy sequence (van der Corput in distinct prime bases).
 
+Abbreviations used in this module:
+
+- **QMC** — Quasi-Monte Carlo (see ``sobol.py`` for the longer note).
+- **van der Corput sequence** — the 1D radical-inverse sequence in a
+  given integer base ``b``: write each natural number ``n`` in base ``b``,
+  reverse the digits, and interpret as the fraction below the point in
+  base ``b``. For ``b = 2`` this gives the binary van der Corput sequence
+  used by Sobol's first dimension.
+
 For dimension :math:`d` the sequence is the van der Corput sequence in base
 :math:`p_d` (the :math:`d`-th prime). The sequence is deterministic, has
 :math:`O((\\log N)^d / N)` star discrepancy, and is trivial to code — but its

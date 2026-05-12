@@ -1,5 +1,13 @@
 """Box-Muller normal transform (Box and Muller, 1958).
 
+Abbreviations used in this module:
+
+- **PRNG** — Pseudo-Random Number Generator.
+- **QMC** — Quasi-Monte Carlo (see ``montecarlo/uniform/sobol.py``).
+  Box-Muller's trigonometric wrap is non-monotonic in the second
+  uniform, which destroys low-discrepancy structure — so this transform
+  is rejected by the factory when paired with a QMC sampler.
+
 Maps pairs of independent uniforms :math:`(U_1, U_2)` to pairs of independent
 normals via
 

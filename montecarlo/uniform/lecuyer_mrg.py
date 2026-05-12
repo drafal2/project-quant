@@ -1,12 +1,29 @@
 """L'Ecuyer MRG32k3a combined multiple-recursive generator.
 
+Abbreviations used in this module:
+
+- **PRNG** — Pseudo-Random Number Generator (a deterministic sequence
+  designed to be statistically indistinguishable from independent uniform
+  draws).
+- **MRG** — Multiple Recursive Generator. A linear recurrence
+  ``x_n = a_1·x_{n-1} + a_2·x_{n-2} + … + a_k·x_{n-k}  (mod m)`` of order
+  ``k > 1`` — the *multiple* in MRG refers to the order of the recurrence,
+  in contrast to an LCG (Linear Congruential Generator) which is order 1.
+  Higher-order recurrences expose more state and so reach longer periods.
+- **MRG32k3a** — L'Ecuyer's specific parameter set: ``32`` denotes 32-bit
+  modular arithmetic, ``k3`` denotes order-3 recurrences, ``a`` is the
+  variant label distinguishing this combined construction from L'Ecuyer's
+  alternative ``MRG32k5a`` (order 5). Two order-3 MRGs are combined into a
+  single output stream.
+
 Implements the combined MRG of L'Ecuyer (1999), "Good Parameters and
 Implementations for Combined Multiple Recursive Random Number Generators",
 *Operations Research* 47(1), 159-164. Period is approximately
 :math:`2^{191}`. This is the production-quality choice on the PRNG side of
 this library: it has substream / leap-ahead support (not implemented in this
-PR — the autocall path engine will wire it up), passes BigCrush, and is the
-generator used by MATLAB and ``rstream`` in R.
+PR — the autocall path engine will wire it up), passes BigCrush (the most
+demanding statistical-quality battery for PRNGs), and is the generator used
+by MATLAB and ``rstream`` in R.
 """
 
 from __future__ import annotations

@@ -1,5 +1,19 @@
 """L'Ecuyer (1988) combined-LCG generator with Bays-Durham shuffle.
 
+Abbreviations used in this module:
+
+- **PRNG** — Pseudo-Random Number Generator.
+- **LCG** — Linear Congruential Generator. The simplest non-trivial PRNG
+  recurrence: ``x_{n+1} = (a · x_n + c) mod m`` for integer multiplier
+  ``a``, increment ``c``, and modulus ``m``. The state is a single integer
+  per generator. Period is at most ``m`` and is far shorter than higher-
+  order recurrences (see ``lecuyer_mrg.py`` for the MRG contrast).
+- **Combined-LCG** — two independent LCGs whose outputs are mixed
+  (subtracted, modulo); the combined period can approach the product of
+  the individual periods.
+- **Bays-Durham shuffle** — a 32-element shuffle table that re-orders the
+  output stream to break up short-range correlations in the underlying LCG.
+
 Implements the generator from L'Ecuyer's 1988 paper "Efficient and portable
 combined random number generators". Two linear congruential generators are
 combined and routed through a 32-element Bays-Durham shuffle table; the
@@ -7,7 +21,7 @@ construction is also known as ``ran2`` in *Numerical Recipes in C*, 2nd edition.
 
 This sampler is **bit-for-bit compatible with**
 :class:`QuantLib.LecuyerUniformRng`. It exists as a peer to the project's own
-:class:`~montecarlo.uniform.lecuyer.LecuyerMRG32k3a1999Sampler` (which implements the
+:class:`~montecarlo.uniform.lecuyer_mrg.LecuyerMRG32k3a1999Sampler` (which implements the
 later 1999 paper) so that cross-validation against QuantLib is possible
 without changing the production-grade L'Ecuyer.
 
@@ -74,7 +88,7 @@ class LecuyerLCG1988Sampler(Sampler):
     Use when
         Cross-validation against QuantLib is required, or as a contrast
         point in the demo notebook. For production path generation use
-        :class:`~montecarlo.uniform.lecuyer.LecuyerMRG32k3a1999Sampler` instead.
+        :class:`~montecarlo.uniform.lecuyer_mrg.LecuyerMRG32k3a1999Sampler` instead.
     """
 
     is_quasi = False

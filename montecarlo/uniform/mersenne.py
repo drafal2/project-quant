@@ -1,5 +1,16 @@
 """Mersenne Twister MT19937 (Matsumoto and Nishimura, 1998).
 
+Abbreviations used in this module:
+
+- **PRNG** — Pseudo-Random Number Generator.
+- **MT19937** — the canonical Mersenne Twister: ``MT`` for Mersenne
+  Twister, ``19937`` because the period is the Mersenne prime
+  :math:`2^{19937} - 1`. The "twister" refers to the bit-twisting linear
+  feedback recurrence on the 624-word state.
+- **Tempering** — a fixed sequence of bit-shift / mask XOR steps applied
+  to each raw state word before output, designed to equidistribute the
+  output bits independently of the recurrence.
+
 Implements the 32-bit MT19937 word-recurrence with period :math:`2^{19937} - 1`.
 The state is a 624-element buffer of 32-bit integers; a Python-loop refill
 runs once per 624 outputs, and the per-output tempering is vectorised through
