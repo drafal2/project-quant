@@ -19,3 +19,4 @@ When inspecting a notebook, never `Read` the whole `.ipynb` — the JSON seriali
 - `03_cds_pricing.ipynb` — `credit/` (single-name CDS pricing: legs, RPV01, par spread, mid-life valuation, sensitivities)
 - `04_zero_curve_bootstrapping.ipynb` — `market_structures/rates/bootstrapper.py`
 - `05_credit_curve_bootstrapping.ipynb` — `credit/bootstrapper.py` (sequential vs. global Newton-Raphson; three interpolation variables)
+- `06_random_number_sampling.ipynb` — `montecarlo/` (PRNGs, Halton/Sobol QMC, five `U -> N` transforms, factory pairing rule, PRNG vs QMC convergence on a European call)

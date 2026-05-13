@@ -34,6 +34,10 @@ loggers:
     level: INFO
     handlers: [console]
     propagate: false
+  montecarlo:
+    level: INFO
+    handlers: [console]
+    propagate: false
   scripts:
     level: INFO
     handlers: [console]
