@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- `market_structures/volatility/` package — quote-side foundation of the implied-volatility stack (PR 1 of the volatility roadmap):
+  - `coordinates.py` — strike / log-moneyness / Black-Scholes spot-delta converters. Unadjusted spot-delta convention (``delta_call = df_funding * N(d1)``); premium-adjusted / forward-delta FX conventions are out of scope
+  - `pricing.py` — `black_scholes_price` (Black-76 forward-domain form ``df * (F * N(d1) - K * N(d2))``), `black_scholes_vega`, `no_arb_price_bounds` (call: ``(df * max(F-K, 0), df * F)``; put: ``(df * max(K-F, 0), df * K)``), and `implied_vol_from_price` (Brent's method on a fixed ``[1e-8, 5.0]`` bracket with an arb-bound pre-check)
+  - `forward.py` — `EquityForward(spot, zero_curve, dividend_yield)` implementing ``F(T) = S0 * exp(-q * T) / DF(T)``; pinned to ACT/365, `at_date` / `at_time` / `__call__` dispatch on the maturity argument type
+  - `surface.py` — `VolSurface` ABC (`reference_date`, `forward(T)`, `implied_vol(T, K)`, `total_variance(T, k_log)`) and `DifferentiableVolSurface` ABC (adds `dw_dT`, `dw_dk`, `d2w_dk2` for analytical Dupire). Canonical coordinate is total implied variance ``w(T, k_log) = sigma^2 * T``
+  - `interpolated.py` — `InterpolatedVolSurface`: non-parametric surface on a per-slice variable-length log-moneyness grid. Default within-slice interpolation is linear in ``w`` (pluggable via `Interpolator`); across slices, linear in ``w`` at fixed ``k_log`` (sticky-moneyness, Gatheral convention); outside the surface's time range, flat-vol-in-time extrapolation (boundary ``sigma(k_log)`` held constant, ``w`` rescaled linearly with ``T``). Two classmethod constructors: `from_option_prices` (Brent-inverts each quote, skips arb-bound violators with `UserWarning`) and `from_implied_vols` (bypasses inversion). Emits a calendar-arbitrage `UserWarning` when ``w`` is non-monotone in ``T`` on any node of the per-pair log-moneyness union grid
+- Logging plumbing for the new package: `market_structures.volatility` entry in `logging.yaml`, `_PACKAGE_LOGGERS` in `logging_config.py`, `NullHandler` install in `market_structures/volatility/__init__.py`
+- Tests covering coordinates (round-trips, admissible delta ranges), pricing (put-call parity, ATM closed-form, vega finite-difference, no-arb bounds, Brent inversion round-trip across sigma × T × moneyness × type, skipping the degenerate deep-ITM/OTM regions where vol is not identifiable from price), forward (formula correctness, dispatch, validation), and interpolated surface (flat-vol grid, node recovery, full price-pipeline recovery, time-range extrapolation, arb-violator skipping, calendar-arbitrage warning)
+
 ## [0.8.0] - 2026-05-13
 
 ### Added

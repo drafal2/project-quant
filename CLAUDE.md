@@ -190,7 +190,7 @@ A Python quantitative finance toolkit. Each domain lives in its own library pack
 | `database/` | Connection management and per-domain table DDL/repositories | [`database/CLAUDE.md`](database/CLAUDE.md) |
 | `scripts/` | DB initialisation entry point and seed data generators | [`scripts/CLAUDE.md`](scripts/CLAUDE.md) |
 | `market_conventions/` | Shared enums (BDC, day count, compounding, stub) used across all packages | [`market_conventions/CLAUDE.md`](market_conventions/CLAUDE.md) |
-| `market_structures/` | Curves, market quotes, bootstrappers, interpolators | [`market_structures/CLAUDE.md`](market_structures/CLAUDE.md) |
+| `market_structures/` | Curves, market quotes, bootstrappers, interpolators, implied-vol surfaces | [`market_structures/CLAUDE.md`](market_structures/CLAUDE.md) |
 | `schedules/` | Accrual schedule generation, calendars, day count fractions | [`schedules/CLAUDE.md`](schedules/CLAUDE.md) |
 | `credit/` | Single-name CDS pricing on a bootstrapped survival curve | [`credit/CLAUDE.md`](credit/CLAUDE.md) |
 | `montecarlo/` | Random-number sampling: PRNGs, low-discrepancy sequences, `U -> N` transforms, diagnostics | [`montecarlo/CLAUDE.md`](montecarlo/CLAUDE.md) |
