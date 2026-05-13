@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-05-13
+
 ### Added
 - `montecarlo/` package — Step 1 (random-number sampling) of the Monte Carlo engine that will price equity basket autocalls
   - `montecarlo.Sampler` ABC with dimension-aware `next_block(n_paths, n_dimensions)` contract; concrete uniform samplers: `KnuthSampler` (subtractive `ran3`), `LecuyerMRG32k3a1999Sampler` (L'Ecuyer 1999, with `substream()` stub for the path-engine PR), `MersenneTwisterSampler` (MT19937), `HaltonSampler`, `SobolSampler` (gray-code with Joe-Kuo 2008 direction numbers up to 1024 dimensions, bundled in `_joe_kuo_data.py`)
