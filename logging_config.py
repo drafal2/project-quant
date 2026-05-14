@@ -15,6 +15,7 @@ _PACKAGE_LOGGERS = (
     "market_conventions",
     "market_structures",
     "market_structures.volatility",
+    "market_structures.equity",
     "schedules",
     "credit",
     "montecarlo",
