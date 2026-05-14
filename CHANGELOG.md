@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-05-14
+
 ### Added
 - `market_structures/equity/` subpackage — equity market-data foundation (PR 1 + PR 2 of the equity-forward-curve roadmap). `EquityForwardCurve(spot, zero_curve, pillar_times, pillar_yields, interpolation=FORWARD_YIELD_FLAT)`: term-structured forward ``F(T) = S0 * exp(-q(T) * T) / DF(T)``. Pinned to ACT/365 (equity convention); discount factors are read by date from the supplied `ZeroCurve` so its internal day-count does not need to match. Exposes `at_date(date)`, `at_time(float)`, `dividend_yield(T)`, and `__call__(when: float | date)` mirroring `EquityForward` so the curve duck-types as `market_structures.volatility.surface.ForwardCallable`. Two classmethod constructors: `EquityForwardCurve.flat(spot, zero_curve, dividend_yield)` builds a single-pillar curve numerically identical to the legacy `market_structures.volatility.forward.EquityForward` (which remains in place); `EquityForwardCurve.from_dividend_yield_quotes(spot, zero_curve, quotes)` builds the curve from a list of market quotes, sorts them by maturity, validates against the discount curve's reference date, and rejects duplicate maturities
 - `DividendYieldInterpolation` enum on `EquityForwardCurve` — `FORWARD_YIELD_FLAT` (default): cumulative yield ``Q(T) = q(T) * T`` is piecewise-linear in ``T`` between pillars (instantaneous forward yield piecewise constant), the equity analogue of the log-linear-in-DF rates convention. `LINEAR_IN_YIELD`: ``q(T)`` itself is piecewise-linear in ``T``. Both modes agree at pillars and extrapolate flat in ``q`` outside the grid
