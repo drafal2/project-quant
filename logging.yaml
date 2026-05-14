@@ -26,6 +26,14 @@ loggers:
     level: INFO
     handlers: [console]
     propagate: false
+  market_structures.volatility:
+    level: INFO
+    handlers: [console]
+    propagate: false
+  market_structures.equity:
+    level: INFO
+    handlers: [console]
+    propagate: false
   schedules:
     level: INFO
     handlers: [console]
@@ -35,6 +43,10 @@ loggers:
     handlers: [console]
     propagate: false
   montecarlo:
+    level: INFO
+    handlers: [console]
+    propagate: false
+  montecarlo.volatility:
     level: INFO
     handlers: [console]
     propagate: false
