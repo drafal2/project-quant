@@ -15,6 +15,16 @@ from .rates import (
     QuoteHierarchy,
     ZeroCurveBootstrapper,
 )
+from .equity import (
+    BorrowRateQuote,
+    DiscreteDividend,
+    DividendKind,
+    DividendYieldInterpolation,
+    DividendYieldQuote,
+    EquityForwardCurve,
+    EquityForwardCurveBootstrapper,
+    ForwardQuote,
+)
 from .interpolation import LinearInterpolator, LogLinearInterpolator, V2TInterpolator
 from .volatility import (
     DifferentiableVolSurface,
@@ -37,6 +47,14 @@ __all__ = [
     "SwapQuote",
     "QuoteHierarchy",
     "ZeroCurveBootstrapper",
+    "BorrowRateQuote",
+    "DiscreteDividend",
+    "DividendKind",
+    "DividendYieldInterpolation",
+    "DividendYieldQuote",
+    "EquityForwardCurve",
+    "EquityForwardCurveBootstrapper",
+    "ForwardQuote",
     "LinearInterpolator",
     "LogLinearInterpolator",
     "V2TInterpolator",
