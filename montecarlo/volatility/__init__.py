@@ -23,11 +23,13 @@ import logging
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 from .constant import ConstantVol
+from .local_vol import DupireLocalVol
 from .model import VolModel
 from .term_structure import BlackTermStructureVol
 
 __all__ = [
     "BlackTermStructureVol",
     "ConstantVol",
+    "DupireLocalVol",
     "VolModel",
 ]

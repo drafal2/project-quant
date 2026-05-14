@@ -39,6 +39,7 @@ from .uniform import (
 from .volatility import (
     BlackTermStructureVol,
     ConstantVol,
+    DupireLocalVol,
     VolModel,
 )
 
@@ -48,6 +49,7 @@ __all__ = [
     "BoxMullerTransform",
     "CLTTransform",
     "ConstantVol",
+    "DupireLocalVol",
     "HaltonSampler",
     "KnuthSampler",
     "LecuyerLCG1988Sampler",
