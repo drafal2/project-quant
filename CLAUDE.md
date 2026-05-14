@@ -193,7 +193,7 @@ A Python quantitative finance toolkit. Each domain lives in its own library pack
 | `market_structures/` | Curves, market quotes, bootstrappers, interpolators, implied-vol surfaces | [`market_structures/CLAUDE.md`](market_structures/CLAUDE.md) |
 | `schedules/` | Accrual schedule generation, calendars, day count fractions | [`schedules/CLAUDE.md`](schedules/CLAUDE.md) |
 | `credit/` | Single-name CDS pricing on a bootstrapped survival curve | [`credit/CLAUDE.md`](credit/CLAUDE.md) |
-| `montecarlo/` | Random-number sampling: PRNGs, low-discrepancy sequences, `U -> N` transforms, diagnostics | [`montecarlo/CLAUDE.md`](montecarlo/CLAUDE.md) |
+| `montecarlo/` | Random-number sampling (PRNGs, QMC, `U -> N` transforms, diagnostics) and diffusion-side volatility models (`ConstantVol`, `BlackTermStructureVol`) | [`montecarlo/CLAUDE.md`](montecarlo/CLAUDE.md) |
 | `tests/` | Pytest suite with isolated DB fixture | [`tests/CLAUDE.md`](tests/CLAUDE.md) |
 | `examples/` | Jupyter notebooks demonstrating each package | [`examples/CLAUDE.md`](examples/CLAUDE.md) |
 | `validation/` | Cross-checks against external references (e.g. QuantLib); run separately, not part of default `tests/` | [`validation/README.md`](validation/README.md) |

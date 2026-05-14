@@ -36,11 +36,18 @@ from .uniform import (
     MersenneTwisterSampler,
     SobolSampler,
 )
+from .volatility import (
+    BlackTermStructureVol,
+    ConstantVol,
+    VolModel,
+)
 
 __all__ = [
     "AcklamTransform",
+    "BlackTermStructureVol",
     "BoxMullerTransform",
     "CLTTransform",
+    "ConstantVol",
     "HaltonSampler",
     "KnuthSampler",
     "LecuyerLCG1988Sampler",
@@ -51,6 +58,7 @@ __all__ = [
     "NormalTransform",
     "Sampler",
     "SobolSampler",
+    "VolModel",
     "WichuraAS241Transform",
     "make_normal_sampler",
 ]

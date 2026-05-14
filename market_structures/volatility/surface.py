@@ -31,19 +31,37 @@ from datetime import date
 class VolSurface(ABC):
     """Abstract implied-volatility surface, indexed by maturity and strike.
 
-    Concrete subclasses must implement four methods:
+    Concrete subclasses must implement five methods:
 
     - :meth:`implied_vol` — the user-facing query, in strike coordinates;
     - :meth:`total_variance` — the canonical-coordinate query, in log-moneyness;
     - :meth:`forward` — the forward curve ``F(T)`` used to convert between the
       two coordinates;
-    - :meth:`reference_date` — the anchor date for the time axis.
+    - :meth:`reference_date` — the anchor date for the time axis;
+    - :meth:`expiries` — the sorted pillar grid in ACT/365 years, used by
+      term-structure consumers (e.g. ``BlackTermStructureVol`` in the
+      diffusion-side package).
     """
 
     @property
     @abstractmethod
     def reference_date(self) -> date:
         """Return the surface reference date (``t = 0`` for the time axis)."""
+
+    @property
+    @abstractmethod
+    def expiries(self) -> list[float]:
+        """Return the surface's pillar grid in ACT/365 years.
+
+        Returns
+        -------
+        list[float]
+            Strictly positive, strictly increasing year-fractions from
+            :attr:`reference_date`. Diffusion-side consumers (notably
+            ``montecarlo.volatility.BlackTermStructureVol``) read these as
+            the natural locations to anchor a piecewise term structure of
+            instantaneous volatility.
+        """
 
     @abstractmethod
     def forward(
