@@ -36,6 +36,11 @@ from .uniform import (
     MersenneTwisterSampler,
     SobolSampler,
 )
+from .paths import (
+    EulerLogPathEngine,
+    PathEngine,
+    TimeGrid,
+)
 from .volatility import (
     BlackTermStructureVol,
     ConstantVol,
@@ -50,6 +55,7 @@ __all__ = [
     "CLTTransform",
     "ConstantVol",
     "DupireLocalVol",
+    "EulerLogPathEngine",
     "HaltonSampler",
     "KnuthSampler",
     "LecuyerLCG1988Sampler",
@@ -58,8 +64,10 @@ __all__ = [
     "MoroTransform",
     "NormalSampler",
     "NormalTransform",
+    "PathEngine",
     "Sampler",
     "SobolSampler",
+    "TimeGrid",
     "VolModel",
     "WichuraAS241Transform",
     "make_normal_sampler",

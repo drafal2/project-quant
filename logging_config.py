@@ -20,6 +20,7 @@ _PACKAGE_LOGGERS = (
     "credit",
     "montecarlo",
     "montecarlo.volatility",
+    "montecarlo.paths",
     "scripts",
     "examples",
 )

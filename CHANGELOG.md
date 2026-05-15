@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- `montecarlo/paths/` subpackage — single-asset MC path generation (PR 1 of the path-engine roadmap).
+  - `TimeGrid([0 = t_0 < t_1 < ... < t_N])` with `from_year_fractions` and `from_dates` (ACT/365) constructors. Strictly-increasing validation; explicit `t = 0` anchor.
+  - `PathEngine` ABC returning `(n_paths, n_steps + 1, n_assets)` spot tensors.
+  - `EulerLogPathEngine(spots, forward_curves, vol_models, time_grid, normal_sampler)`: martingale-preserving Euler-log scheme integrating the log-spread `X_t = log(S_t / F(t))`. Drift is absorbed entirely by the forward callable (no `ZeroCurve` / dividend-yield dependency); the engine accepts any `ForwardCallable` (e.g. `EquityForward.at_time`, `EquityForwardCurve.__call__`). Single- and multi-asset paths share one signature — scalar inputs are coerced to length-1 sequences and the trailing `n_assets` axis is always present. `sigma_k` is read at the start of each step from `vol_model.diffusion(t_k, S_k)`, with `max(t_k, 1e-12)` honouring `DupireLocalVol`'s strict-positive contract. One sampler call per `simulate()` of shape `(n_paths, n_steps * n_assets)`, locking the dimension ordering that PR 3 (Brownian bridge) and PR 4 (correlation) will reorder.
+  - Reserved keyword slots `antithetic`, `brownian_bridge`, `correlation` on the engine constructor; setting any of them raises `NotImplementedError` with a message naming the future PR.
+- Canonical correctness anchor (`tests/test_montecarlo_path_engine_dupire_anchor.py`): MC paths under `DupireLocalVol(InterpolatedVolSurface)` reprice the vanilla calls used to build the surface within `max(2 * stderr, 7% relative + 0.05)` on a 3x5 (T, K) grid with moderate equity skew. The relative-error floor absorbs the residual Euler-Maruyama bias on call-payoff kinks (O(sqrt(dt)) weak convergence); variance reduction in PR 2-3 will tighten this to pure 2*stderr.
+- Logging plumbing for the new subpackage: `montecarlo.paths` entry in `logging.yaml`, `_PACKAGE_LOGGERS` in `logging_config.py`, `NullHandler` install in `montecarlo/paths/__init__.py`.
+- Tests covering `TimeGrid` (validation, ACT/365 from_dates, copies-on-read), engine shape and dtype, scalar/sequence coercion, reserved-kwarg gating, sampler dimension contract (single block of `n_steps * n_assets`), reproducibility under sampler reset, log-normal moments under `ConstantVol`, Black-Scholes ATM call repricing, and `BlackTermStructureVol` ATM repricing end-to-end through the engine.
+
 ## [0.9.0] - 2026-05-14
 
 ### Added
