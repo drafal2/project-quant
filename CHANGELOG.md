@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- `montecarlo/paths/antithetic.py:AntitheticNormalSampler` — antithetic variance reduction in the normal domain (PR 2 of the path-engine roadmap). Wraps a `NormalSampler` so every block draws `n_paths // 2` independent normals from the base and stacks them on top of their negation; the wrapper refuses a quasi base sampler (Sobol / Halton) because appending `-Z` to a low-discrepancy block destroys its rank structure, matching the existing Box-Muller / Sobol pairing rule. Odd `n_paths` raises (the pair is a structural constraint, not a heuristic). `EulerLogPathEngine.__init__` now wires `antithetic=True` to this wrapper; the previous `NotImplementedError` slot is gone. Engine INFO log carries the antithetic flag.
+- Tests covering the wrapper (shape, exact reflection property, reproducibility under reset, refusal of quasi base, odd `n_paths` raise, `.sampler` property, halved underlying draw count, exact-zero per-dimension empirical mean) and engine integration (antithetic=True does not raise, antithetic=True with Sobol raises, paired ConstantVol paths sum to deterministic `-sigma^2 * t` log-spread by construction, antithetic stderr is ≥15% smaller than plain on an ATM call at fixed `n_paths`).
 - `montecarlo/paths/` subpackage — single-asset MC path generation (PR 1 of the path-engine roadmap).
   - `TimeGrid([0 = t_0 < t_1 < ... < t_N])` with `from_year_fractions` and `from_dates` (ACT/365) constructors. Strictly-increasing validation; explicit `t = 0` anchor.
   - `PathEngine` ABC returning `(n_paths, n_steps + 1, n_assets)` spot tensors.

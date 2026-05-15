@@ -123,7 +123,6 @@ def test_non_positive_n_paths_raises() -> None:
 @pytest.mark.parametrize(
     "kwargs, expected_pr",
     [
-        ({"antithetic": True}, "PR 2"),
         ({"brownian_bridge": True}, "PR 3"),
         ({"correlation": object()}, "PR 4"),
     ],

@@ -3,10 +3,10 @@
 Monte Carlo path generation. This package consumes the uniform / normal
 samplers in `montecarlo/` and the diffusion-side `VolModel` family in
 `montecarlo/volatility/`, and produces the spot path tensor that downstream
-payoff modules will price against. PR 1 ships the single-asset core;
-variance-reduction (PR 2 antithetic, PR 3 Brownian bridge) and basket
-(PR 4 correlation) extensions slot into the same engine class via kwargs that
-are already locked in the signature.
+payoff modules will price against. PR 1 shipped the single-asset core; PR 2
+adds antithetic variates. The remaining variance-reduction (PR 3 Brownian
+bridge) and basket (PR 4 correlation) extensions slot into the same engine
+class via kwargs that are already locked in the signature.
 
 ## Layout
 
@@ -21,6 +21,15 @@ are already locked in the signature.
   trailing asset axis is always present, including `n_assets == 1`; consumers
   who want a 2-D view squeeze it themselves. Time index `0` holds the broadcast
   initial spots; subsequent indices follow the engine's discretisation scheme.
+- **`antithetic.py`** — `AntitheticNormalSampler(base)`: wraps a
+  `NormalSampler` so every `next_block(n, d)` call draws ``n // 2``
+  independent normals from `base` and stacks them on top of their negation,
+  producing a `(n, d)` block in which rows `[n/2, n)` equal the
+  sign-flipped rows `[0, n/2)`. `n_paths` must be even (raises on odd).
+  Refused on a quasi base — appending `-Z` to a Sobol / Halton block
+  destroys the low-discrepancy structure, by the same rule the Box-Muller
+  + Sobol pairing follows. The engine wires this in when constructed with
+  `antithetic=True`; users almost never instantiate the wrapper directly.
 - **`euler_log.py`** — `EulerLogPathEngine`: the concrete single-/multi-asset
   Euler-log engine. Integrates the log-spread `X_t = log(S_t / F(t))` rather
   than spot directly: `dX_t = -0.5 sigma^2 dt + sigma dW_t` under any
@@ -65,9 +74,6 @@ are already locked in the signature.
 
 ## Extension points (deferred to later PRs)
 
-- **PR 2 — antithetic variates**: an `AntitheticNormalSampler` wrapper that
-  doubles the path block by sign-flipping each draw. Wrapping a quasi base is
-  refused by the same rule that rejects Box-Muller + Sobol.
 - **PR 3 — Brownian bridge**: a `BrownianBridge` constructed from the
   `TimeGrid` reorders the `(n_paths, n_steps, n_assets)` normal block so the
   largest-variance Brownian increments consume the lowest QMC dimensions.

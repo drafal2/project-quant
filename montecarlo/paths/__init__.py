@@ -10,11 +10,13 @@ import logging
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
+from .antithetic import AntitheticNormalSampler
 from .engine import PathEngine
 from .euler_log import EulerLogPathEngine
 from .time_grid import TimeGrid
 
 __all__ = [
+    "AntitheticNormalSampler",
     "EulerLogPathEngine",
     "PathEngine",
     "TimeGrid",

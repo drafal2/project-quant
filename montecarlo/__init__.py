@@ -37,6 +37,7 @@ from .uniform import (
     SobolSampler,
 )
 from .paths import (
+    AntitheticNormalSampler,
     EulerLogPathEngine,
     PathEngine,
     TimeGrid,
@@ -50,6 +51,7 @@ from .volatility import (
 
 __all__ = [
     "AcklamTransform",
+    "AntitheticNormalSampler",
     "BlackTermStructureVol",
     "BoxMullerTransform",
     "CLTTransform",

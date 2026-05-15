@@ -47,6 +47,7 @@ from market_structures.volatility.surface import ForwardCallable
 
 from ..normal.factory import NormalSampler
 from ..volatility.model import VolModel
+from .antithetic import AntitheticNormalSampler
 from .engine import PathEngine
 from .time_grid import TimeGrid
 
@@ -66,7 +67,14 @@ class EulerLogPathEngine(PathEngine):
     scalars are supplied, and the output always carries the trailing
     ``n_assets`` axis.
 
-    The variance-reduction kwargs ``antithetic``, ``brownian_bridge``, and
+    Variance reduction is opt-in via the ``antithetic`` kwarg: setting it to
+    ``True`` wraps the supplied :class:`NormalSampler` in an
+    :class:`AntitheticNormalSampler`, halving the number of independent base
+    draws while preserving ``n_paths``. The wrapper refuses a quasi base
+    (Sobol / Halton) — antithetic and low-discrepancy structure are
+    incompatible.
+
+    The remaining variance-reduction kwargs ``brownian_bridge`` and
     ``correlation`` are accepted but inert in this PR; they raise
     :class:`NotImplementedError` if set to a non-default value, with the
     message naming the future PR that will deliver them. The reserved
@@ -109,8 +117,12 @@ class EulerLogPathEngine(PathEngine):
             ``(n_paths, n_steps * n_assets)`` to preserve the dimension
             structure that PR 3 (Brownian bridge) will rely on.
         antithetic
-            Reserved for PR 2. Must be ``False`` in this PR; ``True`` raises
-            :class:`NotImplementedError`.
+            If ``True``, wrap ``normal_sampler`` in an
+            :class:`AntitheticNormalSampler` so every block pairs each draw
+            ``Z`` with its negation ``-Z``. Reduces stderr at fixed
+            ``n_paths`` for monotone-in-Z payoffs. Refused on a quasi base.
+            ``n_paths`` must be even at ``simulate()`` time when this is
+            enabled (the wrapper raises otherwise).
         brownian_bridge
             Reserved for PR 3. Must be ``False`` in this PR; ``True`` raises
             :class:`NotImplementedError`.
@@ -122,14 +134,13 @@ class EulerLogPathEngine(PathEngine):
         ------
         ValueError
             If ``spots``, ``forward_curves``, and ``vol_models`` have
-            inconsistent lengths, or if any spot is non-positive.
+            inconsistent lengths, if any spot is non-positive, or if
+            ``antithetic=True`` is paired with a quasi base sampler.
         NotImplementedError
             If any of the reserved variance-reduction kwargs is set.
         """
         if antithetic:
-            raise NotImplementedError(
-                "antithetic=True is reserved for PR 2 of the path-engine roadmap"
-            )
+            normal_sampler = AntitheticNormalSampler(normal_sampler)
         if brownian_bridge:
             raise NotImplementedError(
                 "brownian_bridge=True is reserved for PR 3 of the path-engine roadmap"
@@ -157,12 +168,14 @@ class EulerLogPathEngine(PathEngine):
         self._time_grid = time_grid
         self._sampler = normal_sampler
         self._n_assets = int(n_assets)
+        self._antithetic = bool(antithetic)
 
         logger.info(
-            "EulerLogPathEngine built: n_assets=%d n_steps=%d sampler=%s",
+            "EulerLogPathEngine built: n_assets=%d n_steps=%d sampler=%s antithetic=%s",
             self._n_assets,
             time_grid.n_steps,
             type(normal_sampler.sampler).__name__,
+            self._antithetic,
         )
 
     @property
